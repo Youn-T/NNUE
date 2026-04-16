@@ -1,7 +1,0 @@
-pyproject.toml
-src/pytorch_nnue/entry.py
-src/pytorch_nnue/model.py
-src/pytorch_nnue.egg-info/PKG-INFO
-src/pytorch_nnue.egg-info/SOURCES.txt
-src/pytorch_nnue.egg-info/dependency_links.txt
-src/pytorch_nnue.egg-info/top_level.txt

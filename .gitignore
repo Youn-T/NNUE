@@ -1,2 +1,3 @@
 /src/pytorch_nnue.egg-info
 /.vscode
+/src/pytorch_nnue/__pycache__

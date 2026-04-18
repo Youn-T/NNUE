@@ -33,8 +33,9 @@ class HalfKPExporter(chess.pgn.BaseVisitor):
         self.eval_labels = []
         self.res_val = 0.5
         self.last_eval = 0  # Par défaut si pas d'eval dans le commentaire
-        # Regex pour attraper l'eval dans [%eval 0.15] ou [%eval #2]
-        self.eval_re = re.compile(r"\[%eval ([-+]?\d+\.?\d*|#[-+]?\d+)\]")
+        # Regex large: accepte [%eval 0.15], [%eval #2], [%eval 0.15,23], etc.
+        # Accepte aussi Fishtest: +0.79/18 0.93s -> prend +0.79
+        self.eval_re = re.compile(r"\[%eval\s+([^\]]+)\]|^([+-]?(?:\d+\.\d+|M\d+|M-[0-9]+|\#[-+]?\d+|\d+))(?:/|\s|$)")
 
     def begin_game(self):
         self.last_eval = 0  # Réinitialiser l'eval pour chaque partie
@@ -50,14 +51,21 @@ class HalfKPExporter(chess.pgn.BaseVisitor):
         # Dans Fishtest, l'eval est dans le commentaire du coup
         match = self.eval_re.search(comment)
         if match:
-            val = match.group(1)
-            if val.startswith('#'): # Cas du mat
-                score = 10000 if int(val[1:]) > 0 else -10000
+            # Soit group(1) ([%eval]), soit group(2) (Fishtest)
+            val = match.group(1) or match.group(2)
+            # Certains PGN ajoutent une profondeur: "0.23,18" -> on garde la valeur.
+            val = val.split(",", 1)[0].strip()
+            
+            if 'M' in val:
+                # Stockfish format M2 ou -M2 ou +M69
+                val = val.replace('M', '#')
+                
+            if '#' in val: # Cas du mat (#2, #-2, +#69)
+                val_int = int(val.replace('#', ''))
+                score = 10000 if val_int > 0 else -10000
             else:
                 score = int(float(val) * 100) # Conversion en centipawns
             self.last_eval = score
-        else:
-            self.last_eval = 0 # Par défaut si pas d'eval
 
     def visit_move(self, board, move):
         # On stocke AVANT le move

@@ -4,3 +4,6 @@
 /data/halfkp_data
 /data/halfkp_data_2
 /data/raw_dataset
+data/5c35f4bb0ebc596a450c682d.pgn/5c35f4bb0ebc596a450c682d-698.pgn
+data/5c35f4bb0ebc596a450c682d.pgn.gz
+test_pgn.py

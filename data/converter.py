@@ -26,19 +26,23 @@ def fast_halfkp_indices(board):
     return indices
 
 class HalfKPExporter(chess.pgn.BaseVisitor):
-    """Visitor ultra-rapide qui extrait les indices au vol."""
+    """Visitor ultra-rapide avec synchronisation corrigée."""
     def __init__(self):
         self.pos_indices = []
         self.wdl_labels = []
         self.eval_labels = []
+        
         self.res_val = 0.5
-        self.last_eval = 0  # Par défaut si pas d'eval dans le commentaire
-        # Regex large: accepte [%eval 0.15], [%eval #2], [%eval 0.15,23], etc.
-        # Accepte aussi Fishtest: +0.79/18 0.93s -> prend +0.79
+        # Variables de cache pour synchroniser le coup et son commentaire
+        self.current_indices = None
+        self.current_wdl = None
+        
         self.eval_re = re.compile(r"\[%eval\s+([^\]]+)\]|^([+-]?(?:\d+\.\d+|M\d+|M-[0-9]+|\#[-+]?\d+|\d+))(?:/|\s|$)")
 
     def begin_game(self):
-        self.last_eval = 0  # Réinitialiser l'eval pour chaque partie
+        self.res_val = 0.5  # Correction 3 : Reset obligatoire
+        self.current_indices = None
+        self.current_wdl = None
         return chess.Board()
 
     def visit_header(self, name, value):
@@ -47,36 +51,42 @@ class HalfKPExporter(chess.pgn.BaseVisitor):
             elif value == "0-1": self.res_val = 0.0
             else: self.res_val = 0.5
 
+    def visit_move(self, board, move):
+        # Correction 1 : On met en cache la position AVANT le coup, 
+        # mais on attend de lire le commentaire pour la sauvegarder.
+        self.current_indices = fast_halfkp_indices(board)
+        self.current_wdl = self.res_val if board.turn == chess.WHITE else 1.0 - self.res_val
+
     def visit_comment(self, comment):
-        # Dans Fishtest, l'eval est dans le commentaire du coup
+        # Si on n'a pas de position en attente (ex: double commentaire), on ignore
+        if self.current_indices is None:
+            return
+            
         match = self.eval_re.search(comment)
         if match:
-            # Soit group(1) ([%eval]), soit group(2) (Fishtest)
             val = match.group(1) or match.group(2)
-            # Certains PGN ajoutent une profondeur: "0.23,18" -> on garde la valeur.
             val = val.split(",", 1)[0].strip()
             
             if 'M' in val:
-                # Stockfish format M2 ou -M2 ou +M69
                 val = val.replace('M', '#')
                 
-            if '#' in val: # Cas du mat (#2, #-2, +#69)
+            if '#' in val:
                 val_int = int(val.replace('#', ''))
                 score = 10000 if val_int > 0 else -10000
             else:
-                score = int(float(val) * 100) # Conversion en centipawns
-            self.last_eval = score
+                score = int(float(val) * 100)
+                
+            # Correction 1 & 2 : L'évaluation Fishtest est DÉJÀ du point de vue 
+            # du trait (Side-To-Move), tout comme les indices HalfKP.
+            # On stocke le score directement sans l'inverser pour les noirs.
+            self.pos_indices.append(self.current_indices)
+            self.wdl_labels.append(self.current_wdl)
+            self.eval_labels.append(score)
+            
+            # On vide le cache. Si un coup n'a pas d'évaluation, il sera
+            # simplement écrasé par le prochain visit_move, ce qui est le but recherché.
+            self.current_indices = None
 
-    def visit_move(self, board, move):
-        # On stocke AVANT le move
-        self.pos_indices.append(fast_halfkp_indices(board))
-        self.wdl_labels.append(self.res_val if board.turn == chess.WHITE else 1.0 - self.res_val)
-        
-        # On ajuste l'eval à la perspective (très important !)
-        # Si c'est au tour des noirs, l'eval positive est mauvaise pour eux
-        adj_eval = self.last_eval if board.turn == chess.WHITE else -self.last_eval
-        self.eval_labels.append(adj_eval)
-        
     def result(self):
         return True
 

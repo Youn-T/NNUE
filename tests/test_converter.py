@@ -70,17 +70,17 @@ def test_halfkp_exporter_wdl_and_eval():
     # 3. Bc4: -M2 -> -10000
     # 3... Nf6: 1.25,18 -> 125 cp
     
-    expected_evals = [25, -15, 35, 10000, -10000, 125]
+    expected_evals = [-25, 15, -35, -10000, 10000, -125]
     assert exporter.eval_labels == expected_evals
 
     # WDL: Résultat est 1-0 (White wins). 
-    # index 0: White to move -> win for white (1.0)
-    # index 1: Black to move -> loss for black (0.0)
-    # index 2: White to move -> win for white (1.0)
-    # index 3: Black to move -> loss for black (0.0)
-    # index 4: White to move -> win for white (1.0)
-    # index 5: Black to move -> loss for black (0.0)
-    expected_wdl = [1.0, 0.0, 1.0, 0.0, 1.0, 0.0]
+    # index 0: Black to move -> win for white (1.0)
+    # index 1: White to move -> loss for white (0.0)
+    # index 2: Black to move -> win for white (1.0)
+    # index 3: White to move -> loss for white (0.0)
+    # index 4: Black to move -> win for white (1.0)
+    # index 5: White to move -> loss for white (0.0)
+    expected_wdl = [0.0, 1.0, 0.0, 1.0, 0.0, 1.0]
     assert exporter.wdl_labels == expected_wdl
 
 def test_generated_file_integrity():
@@ -182,6 +182,6 @@ def test_full_pipeline_with_file_saving():
         # Test intégrité globale
         assert len(data['indices']) == 3
         # Les scores devraient être 0, 10, 15
-        assert data['score'].tolist() == [0, 10, 15]
+        assert data['score'].tolist() == [0, -10, -15]
         # Tous draws (0.5) car Result est "1/2-1/2" et ça ne dépend pas de qui joue !
         assert data['wdl'].tolist() == [0.5, 0.5, 0.5]

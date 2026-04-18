@@ -26,24 +26,24 @@ def fast_halfkp_indices(board):
     return indices
 
 class HalfKPExporter(chess.pgn.BaseVisitor):
-    """Visitor ultra-rapide avec synchronisation corrigée."""
     def __init__(self):
         self.pos_indices = []
         self.wdl_labels = []
         self.eval_labels = []
-        
+        self.stm_kings = []
+        self.nstm_kings = []
         self.res_val = 0.5
-        # Variables de cache pour synchroniser le coup et son commentaire
-        self.current_indices = None
-        self.current_wdl = None
-        
+        self.board = None
         self.eval_re = re.compile(r"\[%eval\s+([^\]]+)\]|^([+-]?(?:\d+\.\d+|M\d+|M-[0-9]+|\#[-+]?\d+|\d+))(?:/|\s|$)")
 
     def begin_game(self):
-        self.res_val = 0.5  # Correction 3 : Reset obligatoire
-        self.current_indices = None
-        self.current_wdl = None
-        return chess.Board()
+        self.res_val = 0.5
+        # Ne pas initialiser self.board ici.
+        return None 
+
+    def visit_board(self, board):
+        # CORRECTION 1 : Appelé automatiquement par chess.pgn avec la bonne position de départ (FEN)
+        self.board = board.copy()
 
     def visit_header(self, name, value):
         if name == "Result":
@@ -52,16 +52,9 @@ class HalfKPExporter(chess.pgn.BaseVisitor):
             else: self.res_val = 0.5
 
     def visit_move(self, board, move):
-        # Correction 1 : On met en cache la position AVANT le coup, 
-        # mais on attend de lire le commentaire pour la sauvegarder.
-        self.current_indices = fast_halfkp_indices(board)
-        self.current_wdl = self.res_val if board.turn == chess.WHITE else 1.0 - self.res_val
+        self.board.push(move)
 
     def visit_comment(self, comment):
-        # Si on n'a pas de position en attente (ex: double commentaire), on ignore
-        if self.current_indices is None:
-            return
-            
         match = self.eval_re.search(comment)
         if match:
             val = match.group(1) or match.group(2)
@@ -76,16 +69,24 @@ class HalfKPExporter(chess.pgn.BaseVisitor):
             else:
                 score = int(float(val) * 100)
                 
-            # Correction 1 & 2 : L'évaluation Fishtest est DÉJÀ du point de vue 
-            # du trait (Side-To-Move), tout comme les indices HalfKP.
-            # On stocke le score directement sans l'inverser pour les noirs.
-            self.pos_indices.append(self.current_indices)
-            self.wdl_labels.append(self.current_wdl)
-            self.eval_labels.append(score)
+            # CORRECTION 2 : Inversion du score pour correspondre au STM
+            score = -score
             
-            # On vide le cache. Si un coup n'a pas d'évaluation, il sera
-            # simplement écrasé par le prochain visit_move, ce qui est le but recherché.
-            self.current_indices = None
+            stm = self.board.turn
+            wdl = self.res_val if stm == chess.WHITE else 1.0 - self.res_val
+            
+            if stm == chess.WHITE:
+                stm_k = self.board.king(chess.WHITE)
+                nstm_k = self.board.king(chess.BLACK)
+            else:
+                stm_k = self.board.king(chess.BLACK) ^ 56
+                nstm_k = self.board.king(chess.WHITE) ^ 56
+
+            self.pos_indices.append(fast_halfkp_indices(self.board))
+            self.wdl_labels.append(wdl)
+            self.eval_labels.append(score)
+            self.stm_kings.append(stm_k)
+            self.nstm_kings.append(nstm_k)
 
     def result(self):
         return True
@@ -128,13 +129,17 @@ def process_file_chunk(args):
                         torch.save({
                             'indices': exporter.pos_indices, 
                             'wdl': torch.tensor(exporter.wdl_labels, dtype=torch.float32),
-                            'score': torch.tensor(exporter.eval_labels, dtype=torch.int16) # Centipawns tiennent en int16
+                            'score': torch.tensor(exporter.eval_labels, dtype=torch.int16), # Centipawns tiennent en int16
+                            'stm_king_sq': torch.tensor(exporter.stm_kings, dtype=torch.int8),
+                            'nstm_king_sq': torch.tensor(exporter.nstm_kings, dtype=torch.int8)
                         }, save_path)
                         
                         print(f"✅ [W{worker_id}] Saved {chunk_idx}", flush=True)
                         exporter.pos_indices = []
                         exporter.wdl_labels = []
                         exporter.eval_labels = []
+                        exporter.stm_kings = []
+                        exporter.nstm_kings = []
                         chunk_idx += 1
                         
         except Exception as e:

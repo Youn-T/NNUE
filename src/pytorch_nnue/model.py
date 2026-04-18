@@ -25,6 +25,6 @@ class NNUE(nn.Module):
         
         x = x.clamp(0.0, 255.0)
         
-        pred = self.linear_stack(x)
+        logits = self.linear_stack(x)
 
-        return pred
+        return logits

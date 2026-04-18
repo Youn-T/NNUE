@@ -1,5 +1,6 @@
 import os, glob, gzip, chess, chess.pgn, torch, multiprocessing as mp
 import numpy as np
+import re
 
 # --- CONFIGURATION ---
 INPUT_DIR = "data/raw_dataset"
@@ -28,11 +29,15 @@ class HalfKPExporter(chess.pgn.BaseVisitor):
     """Visitor ultra-rapide qui extrait les indices au vol."""
     def __init__(self):
         self.pos_indices = []
-        self.labels = []
+        self.wdl_labels = []
+        self.eval_labels = []
         self.res_val = 0.5
+        self.last_eval = 0  # Par défaut si pas d'eval dans le commentaire
+        # Regex pour attraper l'eval dans [%eval 0.15] ou [%eval #2]
+        self.eval_re = re.compile(r"\[%eval ([-+]?\d+\.?\d*|#[-+]?\d+)\]")
 
     def begin_game(self):
-        # On réinitialise l'échiquier interne pour la nouvelle partie
+        self.last_eval = 0  # Réinitialiser l'eval pour chaque partie
         return chess.Board()
 
     def visit_header(self, name, value):
@@ -41,11 +46,29 @@ class HalfKPExporter(chess.pgn.BaseVisitor):
             elif value == "0-1": self.res_val = 0.0
             else: self.res_val = 0.5
 
-    def visit_move(self, board, move):
-        # Cette méthode est appelée AVANT que le coup ne soit joué sur 'board'
-        self.pos_indices.append(fast_halfkp_indices(board))
-        self.labels.append(self.res_val if board.turn == chess.WHITE else 1.0 - self.res_val)
+    def visit_comment(self, comment):
+        # Dans Fishtest, l'eval est dans le commentaire du coup
+        match = self.eval_re.search(comment)
+        if match:
+            val = match.group(1)
+            if val.startswith('#'): # Cas du mat
+                score = 10000 if int(val[1:]) > 0 else -10000
+            else:
+                score = int(float(val) * 100) # Conversion en centipawns
+            self.last_eval = score
+        else:
+            self.last_eval = 0 # Par défaut si pas d'eval
 
+    def visit_move(self, board, move):
+        # On stocke AVANT le move
+        self.pos_indices.append(fast_halfkp_indices(board))
+        self.wdl_labels.append(self.res_val if board.turn == chess.WHITE else 1.0 - self.res_val)
+        
+        # On ajuste l'eval à la perspective (très important !)
+        # Si c'est au tour des noirs, l'eval positive est mauvaise pour eux
+        adj_eval = self.last_eval if board.turn == chess.WHITE else -self.last_eval
+        self.eval_labels.append(adj_eval)
+        
     def result(self):
         return True
 
@@ -78,15 +101,22 @@ def process_file_chunk(args):
                     # Sauvegarde si on dépasse le CHUNK_SIZE
                     if len(exporter.pos_indices) >= CHUNK_SIZE:
                         save_path = os.path.join(OUTPUT_DIR, f"w{worker_id}_{chunk_idx}.pt")
-                        # Conversion massive en une seule fois
+                        # # Conversion massive en une seule fois
+                        # torch.save({
+                        #     'indices': exporter.pos_indices, 
+                        #     'labels': torch.tensor(exporter.labels, dtype=torch.float32)
+                        # }, save_path)
+                        
                         torch.save({
                             'indices': exporter.pos_indices, 
-                            'labels': torch.tensor(exporter.labels, dtype=torch.float32)
+                            'wdl': torch.tensor(exporter.wdl_labels, dtype=torch.float32),
+                            'score': torch.tensor(exporter.eval_labels, dtype=torch.int16) # Centipawns tiennent en int16
                         }, save_path)
                         
                         print(f"✅ [W{worker_id}] Saved {chunk_idx}", flush=True)
                         exporter.pos_indices = []
-                        exporter.labels = []
+                        exporter.wdl_labels = []
+                        exporter.eval_labels = []
                         chunk_idx += 1
                         
         except Exception as e:

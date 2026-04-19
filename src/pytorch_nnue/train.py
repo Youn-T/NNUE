@@ -6,47 +6,53 @@ from pytorch_nnue.utils import weight_init, hybrid_loss, halfkp_collate_fn, sani
 from torch.utils.data import DataLoader
 from torch.optim.lr_scheduler import CosineAnnealingLR
 from torch.optim import AdamW
+from torch.amp import autocast, GradScaler
+
 import time
 # HYPERPARAMETERS
 EPOCHS = 100
-BATCH_SIZE = 1024*16
+BATCH_SIZE = 1024*32
 LR = 0.001
 
-def training_loop(dataloader, model, loss_fn, optimizer, scheduler, device):
+def training_loop(dataloader, model, loss_fn, optimizer, scheduler, device, scaler):
     print("Training...")
     model.train()
     
     start = time.perf_counter()
     times = []
-    for batch, (X, king_sq, y) in enumerate(dataloader):
+    for batch, (X, y) in enumerate(dataloader):
         
-        X_us = X
+        X_us, X_them = X
         
         score, WDL = y
         
         # Transfer first, then compute mirrored indices on device to reduce CPU pressure.
         X_us = X_us.to(device, non_blocking=True)
-        king_sq = king_sq.to(device, non_blocking=True)
-        X_them = get_nstm_indices(X_us, king_sq)
+        X_them = X_them.to(device, non_blocking=True)
+        # king_sq = king_sq.to(device, non_blocking=True)
+        # X_them = get_nstm_indices(X_us, king_sq)
         
         score = score.to(device, non_blocking=True)
         WDL = WDL.to(device, non_blocking=True)
         optimizer.zero_grad(set_to_none=True)
+        with autocast(device_type=device):
+            pred = model(X_us, X_them).squeeze(1)
+            # print(pred[:5], score[:5], WDL[:5])
+            loss = loss_fn(pred, score, WDL, alpha=1.0)
         
-        pred = model(X_us, X_them).squeeze(1)
-
-        loss = loss_fn(pred, score, WDL)
-        
-        loss.backward()
-        optimizer.step()
+        scaler.scale(loss).backward()
+        # optimizer.step()
+        scaler.step(optimizer)
+        scaler.update()
         # print(f"Batch {batch+1} - Elapsed time: {time.perf_counter() - start:.4f} ms")
-        times.append(time.perf_counter() - start)
+        if batch > 50:
+            times.append(time.perf_counter() - start)
         start = time.perf_counter()
         if batch % 100 == 0:
             loss, current = loss.item(), batch * BATCH_SIZE + len(X)
-            print(f"loss: {loss:>7f}  {current:>5d}")
-        if batch == 1000:
-            print(f"Average batch time: {sum(times) / len(times):.4f} ms -> {1 / ((sum(times) / len(times))):.2f} batches/s -> {((500_000_000 / BATCH_SIZE) * ((sum(times) / len(times))) / 60):.2f} minutes estimated for 500M samples")
+            print(f"loss: {loss:>7f}")
+        # if batch == 1000:
+        #     print(f"Average batch time: {sum(times) / len(times):.4f} ms -> {1 / ((sum(times) / len(times))):.2f} batches/s -> {((500_000_000 / BATCH_SIZE) * ((sum(times) / len(times))) / 60):.2f} minutes estimated for 500M samples")
         
 
 
@@ -74,14 +80,16 @@ if __name__ == "__main__":
             prefetch_factor=4,
         )
 
+    scaler = GradScaler()
+
     model = NNUE().to(device)
     model.apply(weight_init)
-    # model = torch.compile(model) if is_cuda else model
+    model = torch.compile(model) if is_cuda else model
 
     optimizer = AdamW(model.parameters(), lr=LR)
     scheduler = CosineAnnealingLR(optimizer, T_max=EPOCHS)
 
     for epoch in range(EPOCHS):
         print(f"Epoch {epoch+1}\n-------------------------------")
-        training_loop(dataloader, model, hybrid_loss, optimizer, scheduler, device)
+        training_loop(dataloader, model, hybrid_loss, optimizer, scheduler, device, scaler)
         scheduler.step() 

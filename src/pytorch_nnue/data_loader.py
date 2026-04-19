@@ -3,7 +3,7 @@ import glob
 import os
 import random
 from torch.utils.data import IterableDataset, get_worker_info
-from pytorch_nnue.utils import get_nstm_indices
+from pytorch_nnue.utils import get_nstm_indices, centipawn_to_prob
 
 class HalfKPDataset(IterableDataset):
     def __init__(self, data_dir='data/halfkp_data', batch_size=8192, shuffle=True):
@@ -69,10 +69,12 @@ class HalfKPDataset(IterableDataset):
                 batch_nstm_kings = nstm_kings[start_idx:end_idx]
                 batch_wdl = wdl[start_idx:end_idx]
                 batch_score = score[start_idx:end_idx]
-                # batch_nstm = nstm_indices[start_idx:end_idx]
+                batch_score = centipawn_to_prob(batch_score)  # Convert centipawns to probabilities
+                batch_nstm = get_nstm_indices(batch_stm, batch_nstm_kings)
                 
-                # Format to match the previous collate_fn output:
-                # stm_indices, nstm_kings, (scores, wdl)
-                yield batch_stm, batch_nstm_kings, (batch_score, batch_wdl)
+                batch_stm = torch.where((batch_stm == -1) | (batch_stm >= 40960), 40960, batch_stm)
+                batch_nstm = torch.where((batch_nstm == -1) | (batch_nstm >= 40960), 40960, batch_nstm)
+
+                yield (batch_stm, batch_nstm), (batch_score, batch_wdl)
 
         

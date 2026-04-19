@@ -3,26 +3,26 @@ import torch.nn.functional as F
 
 HALFKP_NUM_EMBEDDINGS = 40960
 
-class CReLU(torch.autograd.Function):
-    # def __init__(self, clip_value=255.0):
-    #     super().__init__()
-    #     self.clip_value = clip_value
-
-    @staticmethod
-    def forward(self, x, clip_value=255.0):
-        return torch.clamp(x, min=0.0, max=clip_value)
-    
-    @staticmethod
-    def backward(self, x, clip_value=255.0):
-        return torch.where((x <= 0) | (x >= clip_value), 0.0, 1.0)
-    
-class Lambda(torch.nn.Module):
-    def __init__(self, func):
+class CReLU(torch.nn.Module):
+    def __init__(self, clip_value=255.0):
         super().__init__()
-        self.func = func
+        self.clip_value = clip_value
 
+    # @staticmethod
     def forward(self, x):
-        return self.func(x)
+        return torch.clamp(x, min=0.0, max=self.clip_value)
+    
+    # @staticmethod
+    # def backward(self, x, clip_value=255.0):
+    #     return torch.where((x <= 0) | (x >= clip_value), 0.0, 1.0)
+    
+# class Lambda(torch.nn.Module):
+#     def __init__(self, func):
+#         super().__init__()
+#         self.func = func
+
+#     def forward(self, x):
+#         return self.func(x)
     
 def hybrid_loss(pred, score, WDL, alpha=0.5):
     mse_loss = F.mse_loss(pred, score)
@@ -106,3 +106,5 @@ def halfkp_collate_fn(batch):
     wdl = torch.stack([item['wdl'] for item in batch])
     return stm_indices, nstm_kings, (scores, wdl) 
 
+def centipawn_to_prob(score, scale=400.0):
+    return 1 / (1 + torch.exp(-score / scale))

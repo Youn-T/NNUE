@@ -32,18 +32,14 @@ class HalfKPExporter(chess.pgn.BaseVisitor):
         self.eval_labels = []
         self.stm_kings = []
         self.nstm_kings = []
+        
         self.res_val = 0.5
-        self.board = None
+        self.board = None # Référence vers le plateau interne
         self.eval_re = re.compile(r"\[%eval\s+([^\]]+)\]|^([+-]?(?:\d+\.\d+|M\d+|M-[0-9]+|\#[-+]?\d+|\d+))(?:/|\s|$)")
 
     def begin_game(self):
         self.res_val = 0.5
-        # Ne pas initialiser self.board ici.
         return None 
-
-    def visit_board(self, board):
-        # CORRECTION 1 : Appelé automatiquement par chess.pgn avec la bonne position de départ (FEN)
-        self.board = board.copy()
 
     def visit_header(self, name, value):
         if name == "Result":
@@ -51,40 +47,50 @@ class HalfKPExporter(chess.pgn.BaseVisitor):
             elif value == "0-1": self.res_val = 0.0
             else: self.res_val = 0.5
 
+    def visit_board(self, board):
+        # On garde une référence vers le plateau que le parseur va manipuler
+        self.board = board
+
     def visit_move(self, board, move):
-        self.board.push(move)
+        # On ne fait rien ici, on attend le commentaire qui suit le coup
+        pass
 
     def visit_comment(self, comment):
+        """
+        Déclencheur principal : ici, le coup a déjà été joué sur self.board.
+        On extrait l'éval et on enregistre l'état actuel du plateau.
+        """
         match = self.eval_re.search(comment)
         if match:
+            # 1. Extraction du score (toujours relatif aux blancs dans le PGN)
             val = match.group(1) or match.group(2)
             val = val.split(",", 1)[0].strip()
             
-            if 'M' in val:
-                val = val.replace('M', '#')
-                
-            if '#' in val:
-                val_int = int(val.replace('#', ''))
-                score = 10000 if val_int > 0 else -10000
+            if 'M' in val or '#' in val:
+                val_int = int(val.replace('M', '').replace('#', ''))
+                score_white = 10000 if val_int > 0 else -10000
             else:
-                score = int(float(val) * 100)
-                
-            # CORRECTION 2 : Inversion du score pour correspondre au STM
-            score = -score
+                score_white = int(float(val) * 100)
             
-            stm = self.board.turn
-            wdl = self.res_val if stm == chess.WHITE else 1.0 - self.res_val
-            
-            if stm == chess.WHITE:
+            # CORRECTION : Selon tes tests, le label attendu est -score_white
+            # car après le coup, c'est au tour de l'adversaire (STM).
+            self.eval_labels.append(-score_white)
+
+            # 2. Indices HalfKP (pour le joueur dont c'est le tour MAINTENANT)
+            self.pos_indices.append(fast_halfkp_indices(self.board))
+
+            # 3. WDL (Perspective Side To Move)
+            wdl = self.res_val if self.board.turn == chess.BLACK else 1.0 - self.res_val
+            self.wdl_labels.append(wdl)
+
+            # 4. Rois (Perspective STM)
+            if self.board.turn == chess.WHITE:
                 stm_k = self.board.king(chess.WHITE)
                 nstm_k = self.board.king(chess.BLACK)
             else:
                 stm_k = self.board.king(chess.BLACK) ^ 56
                 nstm_k = self.board.king(chess.WHITE) ^ 56
-
-            self.pos_indices.append(fast_halfkp_indices(self.board))
-            self.wdl_labels.append(wdl)
-            self.eval_labels.append(score)
+            
             self.stm_kings.append(stm_k)
             self.nstm_kings.append(nstm_k)
 
@@ -119,19 +125,26 @@ def process_file_chunk(args):
                     
                     # Sauvegarde si on dépasse le CHUNK_SIZE
                     if len(exporter.pos_indices) >= CHUNK_SIZE:
-                        save_path = os.path.join(OUTPUT_DIR, f"w{worker_id}_{chunk_idx}.pt")
+                        save_path = os.path.join(OUTPUT_DIR, f"w{worker_id}_{chunk_idx}_sz{len(exporter.pos_indices)}.pt")
                         # # Conversion massive en une seule fois
                         # torch.save({
                         #     'indices': exporter.pos_indices, 
                         #     'labels': torch.tensor(exporter.labels, dtype=torch.float32)
                         # }, save_path)
                         
+                        max_pieces = 30 
+                        padded_indices = torch.full((len(exporter.pos_indices), max_pieces), -1, dtype=torch.int32)
+
+                        for i, idx_list in enumerate(exporter.pos_indices):
+                            l = len(idx_list)
+                            padded_indices[i, :l] = torch.tensor(idx_list, dtype=torch.int32)
+                        
                         torch.save({
-                            'indices': exporter.pos_indices, 
+                            'indices': padded_indices,
                             'wdl': torch.tensor(exporter.wdl_labels, dtype=torch.float32),
                             'score': torch.tensor(exporter.eval_labels, dtype=torch.int16), # Centipawns tiennent en int16
-                            'stm_king_sq': torch.tensor(exporter.stm_kings, dtype=torch.int8),
-                            'nstm_king_sq': torch.tensor(exporter.nstm_kings, dtype=torch.int8)
+                            'stm_kings': torch.tensor(exporter.stm_kings, dtype=torch.int16),
+                            'nstm_kings': torch.tensor(exporter.nstm_kings, dtype=torch.int16)
                         }, save_path)
                         
                         print(f"✅ [W{worker_id}] Saved {chunk_idx}", flush=True)

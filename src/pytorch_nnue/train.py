@@ -1,40 +1,82 @@
 import torch
 from torch import nn
 from pytorch_nnue.model import NNUE
-import time
+from pytorch_nnue.data_loader import HalfKPDataset
+from pytorch_nnue.utils import weight_init, hybrid_loss, halfkp_collate_fn, sanitize_halfkp_indices, get_nstm_indices
+from torch.utils.data import DataLoader
+from torch.optim.lr_scheduler import CosineAnnealingLR
+from torch.optim import AdamW
 
 # HYPERPARAMETERS
 EPOCHS = 100
-BATCH_SIZE = 8192
+BATCH_SIZE = 1024*8
 LR = 0.001
 
-def training_loop(dataloader, model, loss_fn, optimizer):
+def training_loop(dataloader, model, loss_fn, optimizer, scheduler, device):
+    print("Training...")
     model.train()
     
-    for batch, (X, y) in enumerate(dataloader):
-        X_us, X_them = X
-        pred = model(X_us, X_them)
+    for batch, (X, king_sq, y) in enumerate(dataloader):
+        print(f"Batch {batch+1}/{len(dataloader)}")
+        
+        X_us = X
+        
+        score, WDL = y
+        
+        # Transfer first, then compute mirrored indices on device to reduce CPU pressure.
+        X_us = X_us.to(device, non_blocking=True)
+        king_sq = king_sq.to(device, non_blocking=True)
+        X_them = get_nstm_indices(X_us, king_sq)
+        
+        score = score.to(device, non_blocking=True)
+        WDL = WDL.to(device, non_blocking=True)
+        optimizer.zero_grad(set_to_none=True)
+        
+        pred = model(X_us, X_them).squeeze(1)
 
-        loss = loss_fn(pred, y)
+        loss = loss_fn(pred, score, WDL)
+        
         loss.backward()
         optimizer.step()
-        optimizer.zero_grad()
+        scheduler.step() 
         
         if batch % 100 == 0:
             loss, current = loss.item(), batch * BATCH_SIZE + len(X)
             print(f"loss: {loss:>7f}  {current:>5d}")
 
-device = torch.accelerator.current_accelerator().type if torch.accelerator.is_available() else "cpu"
-print("Using {} device".format(device))
 
-model = NNUE().to(device)
-start_time = time.time()
 
-X_us = torch.tensor([[10, 500, 40000]], device=device)
-X_them = torch.tensor([[15, 600, 35000]], device=device)
 
-pred = model(X_us, X_them)
-pred_s = nn.Sigmoid()(pred)
-end_time = time.time()
-print(f"Predicted value: {pred.item()}, Sigmoid: {pred_s.item()}")
-print("Inference time: {} seconds".format(end_time - start_time))   
+# X_us = torch.tensor([[10, 500, 40000]], device=device)
+# X_them = torch.tensor([[15, 600, 35000]], device=device)
+
+# pred = model(X_us, X_them)
+# pred_s = nn.Sigmoid()(pred)
+# print(f"Predicted value: {pred.item()}, Sigmoid: {pred_s.item()}")
+if __name__ == "__main__":
+    device = torch.accelerator.current_accelerator().type if torch.accelerator.is_available() else "cpu"
+    print("Using {} device".format(device))
+    is_cuda = device == "cuda"
+
+    dataset = HalfKPDataset()
+    dataloader = DataLoader(
+        dataset,
+        batch_size=BATCH_SIZE,
+        shuffle=False,
+        num_workers=6,
+        collate_fn=halfkp_collate_fn,
+        pin_memory=is_cuda,
+        persistent_workers=True,
+        prefetch_factor=4,
+    )
+
+    model = NNUE().to(device)
+    model.apply(weight_init)
+
+
+    optimizer = AdamW(model.parameters(), lr=LR)
+    scheduler = CosineAnnealingLR(optimizer, T_max=EPOCHS)
+
+    for epoch in range(EPOCHS):
+        print(f"Epoch {epoch+1}\n-------------------------------")
+        training_loop(dataloader, model, hybrid_loss, optimizer, scheduler, device)

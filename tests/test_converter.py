@@ -74,14 +74,23 @@ def test_halfkp_exporter_wdl_and_eval():
     assert exporter.eval_labels == expected_evals
 
     # WDL: Résultat est 1-0 (White wins). 
-    # index 0: Black to move -> win for white (1.0)
-    # index 1: White to move -> loss for white (0.0)
-    # index 2: Black to move -> win for white (1.0)
-    # index 3: White to move -> loss for white (0.0)
-    # index 4: Black to move -> win for white (1.0)
-    # index 5: White to move -> loss for white (0.0)
+    # index 0: Black to move -> win for white (0.0)
+    # index 1: White to move -> loss for white (1.0)
+    # index 2: Black to move -> win for white (0.0)
+    # index 3: White to move -> loss for white (1.0)
+    # index 4: Black to move -> win for white (0.0)
+    # index 5: White to move -> loss for white (1.0)
     expected_wdl = [0.0, 1.0, 0.0, 1.0, 0.0, 1.0]
     assert exporter.wdl_labels == expected_wdl
+
+    # Testing King squares
+    # 1. e4: black to move. STM=Black. 
+    # White king starting pos = chess.E1 = 4. Black king starts at = chess.E8 = 60.
+    # From black's perspective, black king is at 60 ^ 56 = 4. White king is at 4 ^ 56 = 60.
+    # 1... e5: stm=White. stm_k=4, nstm_k=60.
+    # Both kings don't move during this sequence.
+    assert exporter.stm_kings == [4, 4, 4, 4, 4, 4]
+    assert exporter.nstm_kings == [60, 60, 60, 60, 60, 60]
 
 def test_generated_file_integrity():
     """
@@ -99,6 +108,8 @@ def test_generated_file_integrity():
     ]
     exporter.wdl_labels = [1.0, 0.5, 0.0]
     exporter.eval_labels = [25, 0, -100]
+    exporter.stm_kings = [4, 4, 4]
+    exporter.nstm_kings = [60, 60, 60]
 
     with tempfile.TemporaryDirectory() as tmpdir:
         save_path = os.path.join(tmpdir, "test_chunk.pt")
@@ -107,7 +118,9 @@ def test_generated_file_integrity():
         torch.save({
             'indices': exporter.pos_indices, 
             'wdl': torch.tensor(exporter.wdl_labels, dtype=torch.float32),
-            'score': torch.tensor(exporter.eval_labels, dtype=torch.int16)
+            'score': torch.tensor(exporter.eval_labels, dtype=torch.int16),
+            'stm_king_sq': torch.tensor(exporter.stm_kings, dtype=torch.int8),
+            'nstm_king_sq': torch.tensor(exporter.nstm_kings, dtype=torch.int8)
         }, save_path)
 
         # 1. Vérification système de fichiers
@@ -124,21 +137,29 @@ def test_generated_file_integrity():
         assert 'indices' in data
         assert 'wdl' in data
         assert 'score' in data
+        assert 'stm_king_sq' in data
+        assert 'nstm_king_sq' in data
 
         # 4. Vérification des types attendus (crucial pour le Dataloader)
         assert isinstance(data['indices'], list)
         assert data['wdl'].dtype == torch.float32
         assert data['score'].dtype == torch.int16
+        assert data['stm_king_sq'].dtype == torch.int8
+        assert data['nstm_king_sq'].dtype == torch.int8
 
         # 5. Vérification des dimensions
         assert len(data['indices']) == 3
         assert data['wdl'].shape == (3,)
         assert data['score'].shape == (3,)
+        assert data['stm_king_sq'].shape == (3,)
+        assert data['nstm_king_sq'].shape == (3,)
 
         # 6. Vérification des valeurs exactes
         assert data['indices'][0] == [2572, 2932]
         torch.testing.assert_close(data['wdl'], torch.tensor([1.0, 0.5, 0.0], dtype=torch.float32))
         torch.testing.assert_close(data['score'], torch.tensor([25, 0, -100], dtype=torch.int16))
+        assert data['stm_king_sq'].tolist() == [4, 4, 4]
+        assert data['nstm_king_sq'].tolist() == [60, 60, 60]
 
 def test_full_pipeline_with_file_saving():
     """
@@ -174,14 +195,45 @@ def test_full_pipeline_with_file_saving():
         torch.save({
             'indices': exporter.pos_indices, 
             'wdl': torch.tensor(exporter.wdl_labels, dtype=torch.float32),
-            'score': torch.tensor(exporter.eval_labels, dtype=torch.int16)
+            'score': torch.tensor(exporter.eval_labels, dtype=torch.int16),
+            'stm_king_sq': torch.tensor(exporter.stm_kings, dtype=torch.int8),
+            'nstm_king_sq': torch.tensor(exporter.nstm_kings, dtype=torch.int8)
         }, save_path)
         
         data = torch.load(save_path)
         
         # Test intégrité globale
         assert len(data['indices']) == 3
-        # Les scores devraient être 0, 10, 15
+        # Les scores devraient être 0, -10, -15
         assert data['score'].tolist() == [0, -10, -15]
         # Tous draws (0.5) car Result est "1/2-1/2" et ça ne dépend pas de qui joue !
         assert data['wdl'].tolist() == [0.5, 0.5, 0.5]
+        assert data['stm_king_sq'].tolist() == [4, 4, 4]
+        assert data['nstm_king_sq'].tolist() == [60, 60, 60]
+
+def test_halfkp_exporter_custom_fen():
+    pgn_data = """[Event "Custom FEN"]
+[Site "?"]
+[Date "2026.04.19"]
+[Round "?"]
+[White "Player1"]
+[Black "Player2"]
+[Result "1-0"]
+[FEN "rnb1kbnr/pp1ppppp/1qp5/8/5P2/5N2/PPPPP1PP/RNBQKB1R w KQkq -"]
+[SetUp "1"]
+
+1. e4 { [%eval 0.20] } 1... d5 { [%eval -0.30] } 1-0
+"""
+    pgn_io = io.StringIO(pgn_data)
+    exporter = HalfKPExporter()
+    
+    game = chess.pgn.read_game(pgn_io)
+    game.accept(exporter)
+
+    assert len(exporter.eval_labels) == 2
+    assert exporter.eval_labels == [-20, 30]
+    
+    # Check that custom FEN starting piece setup is correct
+    # The first move `1. e4` triggers `visit_comment` that reads the board state exactly *after* the move.
+    assert len(exporter.pos_indices) == 2
+

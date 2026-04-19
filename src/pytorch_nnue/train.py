@@ -39,7 +39,6 @@ def training_loop(dataloader, model, loss_fn, optimizer, scheduler, device):
         
         loss.backward()
         optimizer.step()
-        scheduler.step() 
         # print(f"Batch {batch+1} - Elapsed time: {time.perf_counter() - start:.4f} ms")
         times.append(time.perf_counter() - start)
         start = time.perf_counter()
@@ -77,7 +76,7 @@ if __name__ == "__main__":
 
     model = NNUE().to(device)
     model.apply(weight_init)
-
+    # model = torch.compile(model) if is_cuda else model
 
     optimizer = AdamW(model.parameters(), lr=LR)
     scheduler = CosineAnnealingLR(optimizer, T_max=EPOCHS)
@@ -85,3 +84,4 @@ if __name__ == "__main__":
     for epoch in range(EPOCHS):
         print(f"Epoch {epoch+1}\n-------------------------------")
         training_loop(dataloader, model, hybrid_loss, optimizer, scheduler, device)
+        scheduler.step() 

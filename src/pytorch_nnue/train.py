@@ -6,18 +6,19 @@ from pytorch_nnue.utils import weight_init, hybrid_loss, halfkp_collate_fn, sani
 from torch.utils.data import DataLoader
 from torch.optim.lr_scheduler import CosineAnnealingLR
 from torch.optim import AdamW
-
+import time
 # HYPERPARAMETERS
 EPOCHS = 100
-BATCH_SIZE = 1024*8
+BATCH_SIZE = 1024*16
 LR = 0.001
 
 def training_loop(dataloader, model, loss_fn, optimizer, scheduler, device):
     print("Training...")
     model.train()
     
+    start = time.perf_counter()
+    times = []
     for batch, (X, king_sq, y) in enumerate(dataloader):
-        print(f"Batch {batch+1}/{len(dataloader)}")
         
         X_us = X
         
@@ -39,10 +40,15 @@ def training_loop(dataloader, model, loss_fn, optimizer, scheduler, device):
         loss.backward()
         optimizer.step()
         scheduler.step() 
-        
+        # print(f"Batch {batch+1} - Elapsed time: {time.perf_counter() - start:.4f} ms")
+        times.append(time.perf_counter() - start)
+        start = time.perf_counter()
         if batch % 100 == 0:
             loss, current = loss.item(), batch * BATCH_SIZE + len(X)
             print(f"loss: {loss:>7f}  {current:>5d}")
+        if batch == 1000:
+            print(f"Average batch time: {sum(times) / len(times):.4f} ms -> {1 / ((sum(times) / len(times))):.2f} batches/s -> {((500_000_000 / BATCH_SIZE) * ((sum(times) / len(times))) / 60):.2f} minutes estimated for 500M samples")
+        
 
 
 
@@ -58,17 +64,16 @@ if __name__ == "__main__":
     print("Using {} device".format(device))
     is_cuda = device == "cuda"
 
-    dataset = HalfKPDataset()
+    dataset = HalfKPDataset(batch_size=BATCH_SIZE, shuffle=False)
+
     dataloader = DataLoader(
-        dataset,
-        batch_size=BATCH_SIZE,
-        shuffle=False,
-        num_workers=6,
-        collate_fn=halfkp_collate_fn,
-        pin_memory=is_cuda,
-        persistent_workers=True,
-        prefetch_factor=4,
-    )
+            dataset,
+            batch_size=None,          # Le batching est désormais géré nativement (sans overhead) par le Dataset
+            num_workers=6,
+            pin_memory=True,          # Extrèmement important pour le transfert rapide vers le GPU
+            persistent_workers=True,
+            prefetch_factor=4,
+        )
 
     model = NNUE().to(device)
     model.apply(weight_init)

@@ -1,54 +1,78 @@
 import torch
 import glob
 import os
-from torch.utils.data import Dataset, DataLoader
-from pytorch_nnue.utils import get_nstm_indices, sanitize_halfkp_indices
+import random
+from torch.utils.data import IterableDataset, get_worker_info
+from pytorch_nnue.utils import get_nstm_indices
 
-class HalfKPDataset(Dataset):
-    def __init__(self, data_dir='data/halfkp_data'):
+class HalfKPDataset(IterableDataset):
+    def __init__(self, data_dir='data/halfkp_data', batch_size=8192, shuffle=True):
         """Initialization"""
+        super().__init__()
         self.file_paths = sorted(glob.glob(os.path.join(data_dir, "*.pt")))
-        self.total_samples = 0
-        self.samples_per_file = []
-        self.current_data = None
+        self.batch_size = batch_size
+        self.shuffle = shuffle
         
-        for path in self.file_paths:
-            sz = path.split("_")[-1].split(".")[0][2:]  # Extract size from filename
-            self.total_samples += int(sz)
-            self.samples_per_file.append(int(sz))
+    def __iter__(self):
+        worker_info = get_worker_info()
         
-        self.cumulative_sizes = torch.tensor(self.samples_per_file).cumsum(dim=0)
-        self.current_file_idx = -1
-
-    def __len__(self):
-        """Denotes the total number of samples"""
-        return self.total_samples   
-
-    def _load_file(self, file_idx):
-        if file_idx != self.current_file_idx:
-            self.current_data = torch.load(self.file_paths[file_idx])
-            self.current_file_idx = file_idx
-
-    def __getitem__(self, idx):
-        """Generates one sample of data"""
-        file_idx = torch.searchsorted(self.cumulative_sizes, idx, right=True)
-        if file_idx > 0:
-            local_idx = idx - self.cumulative_sizes[file_idx - 1].item()
+        # 1. Sharding files per worker to avoid duplicate data and contention
+        if worker_info is None:
+            files_to_process = self.file_paths
         else:
-            local_idx = idx
+            files_to_process = [
+                self.file_paths[i] for i in range(len(self.file_paths))
+                if i % worker_info.num_workers == worker_info.id
+            ]
+
+        if self.shuffle:
+            files_to_process = list(files_to_process)
+            random.shuffle(files_to_process)
             
-        self._load_file(file_idx)
-        
-        # 2. Extraire les données STM (Joueur)
-        stm_indices = self.current_data['indices'][local_idx]#sanitize_halfkp_indices(self.current_data['indices'][local_idx])
-        nstm_king_sq = self.current_data['nstm_kings'][local_idx]
-        # stm_king_sq = self.current_data['stm_kings'][local_idx]
-        # nstm_indices =get_nstm_indices(stm_indices, nstm_king_sq) # sanitize_halfkp_indices(get_nstm_indices(stm_indices, nstm_king_sq))
-        
-        return {
-            'stm_indices': stm_indices,
-            'nstm_kings': nstm_king_sq,
-            'wdl': torch.as_tensor(self.current_data['wdl'][local_idx], dtype=torch.float32),
-            'score': torch.as_tensor(self.current_data['score'][local_idx], dtype=torch.float32),
-        }
+        for path in files_to_process:
+            # 2. Load the entire file tensor at once into memory (orders of magnitude faster)
+            data = torch.load(path, weights_only=True)
+            
+            # Extract and parse
+            indices = data['indices'].to(torch.long)
+            
+            # Restore negative wrappers for values > 32767 stored in signed int16
+            indices = torch.where(indices < 0, indices + 65536, indices)
+            indices.clamp_(0, 40959)
+            
+            nstm_kings = data['nstm_kings'].to(torch.long)
+            wdl = data['wdl'].to(torch.float32)
+            score = data['score'].to(torch.float32)
+            
+            # Compute nstm_indices fully vectorized over the whole chunk!
+            stm_indices = indices
+            # Uncomment if you need nstm_indices for the model (usually required for evaluation):
+            # nstm_indices = get_nstm_indices(stm_indices, nstm_kings)
+            
+            n_samples = stm_indices.size(0)
+            
+            # 3. Shuffle chunks internally
+            if self.shuffle:
+                perm = torch.randperm(n_samples)
+                stm_indices = stm_indices[perm]
+                nstm_kings = nstm_kings[perm]
+                wdl = wdl[perm]
+                score = score[perm]
+                # if nstm_indices is generated, shuffle it too
+                # nstm_indices = nstm_indices[perm]
+                
+            # 4. Yield pre-batched sliced tensors directly to bypass any collate overhead
+            for start_idx in range(0, n_samples, self.batch_size):
+                end_idx = min(start_idx + self.batch_size, n_samples)
+                
+                batch_stm = stm_indices[start_idx:end_idx]
+                batch_nstm_kings = nstm_kings[start_idx:end_idx]
+                batch_wdl = wdl[start_idx:end_idx]
+                batch_score = score[start_idx:end_idx]
+                # batch_nstm = nstm_indices[start_idx:end_idx]
+                
+                # Format to match the previous collate_fn output:
+                # stm_indices, nstm_kings, (scores, wdl)
+                yield batch_stm, batch_nstm_kings, (batch_score, batch_wdl)
+
         

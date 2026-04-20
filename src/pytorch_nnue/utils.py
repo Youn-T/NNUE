@@ -11,21 +11,10 @@ class CReLU(torch.nn.Module):
     # @staticmethod
     def forward(self, x):
         return torch.clamp(x, min=0.0, max=self.clip_value)
-    
-    # @staticmethod
-    # def backward(self, x, clip_value=255.0):
-    #     return torch.where((x <= 0) | (x >= clip_value), 0.0, 1.0)
-    
-# class Lambda(torch.nn.Module):
-#     def __init__(self, func):
-#         super().__init__()
-#         self.func = func
 
-#     def forward(self, x):
-#         return self.func(x)
     
 def hybrid_loss(pred, score, WDL, alpha=0.5):
-    mse_loss = F.mse_loss(pred, score)
+    mse_loss = F.mse_loss(centipawn_to_prob(pred, scale=400.0), centipawn_to_prob(score, scale=400.0)) # score is already a probability in [0,1]
     bce_loss = F.binary_cross_entropy_with_logits(pred, WDL.float())
     return alpha * mse_loss + (1 - alpha) * bce_loss
     
@@ -35,6 +24,12 @@ def weight_init(m):
         torch.nn.init.kaiming_normal_(m.weight, nonlinearity='linear')
         if m.bias is not None:
             torch.nn.init.zeros_(m.bias)
+    elif isinstance(m, torch.nn.EmbeddingBag):
+        # Initialisation plus douce pour éviter l'explosion des gradients
+        torch.nn.init.uniform_(m.weight, a=-0.01, b=0.01)
+        # Assure-toi que le padding index reste bien à zéro !
+        with torch.no_grad():
+            m.weight[40960].fill_(0.0)
             
             
 def get_nstm_indices(indices_white, black_king_sq):
@@ -107,4 +102,5 @@ def halfkp_collate_fn(batch):
     return stm_indices, nstm_kings, (scores, wdl) 
 
 def centipawn_to_prob(score, scale=400.0):
-    return 1 / (1 + torch.exp(-score / scale))
+    # Beaucoup plus stable et rapide que 1 / (1 + exp(...))
+    return torch.sigmoid(score / scale)

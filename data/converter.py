@@ -4,7 +4,7 @@ import re
 
 # --- CONFIGURATION ---
 INPUT_DIR = "data/raw_dataset"
-OUTPUT_DIR = "data/halfkp_data"
+OUTPUT_DIR = "D:/Projects/HalfKP Dataset"#"data/halfkp_data"
 CHUNK_SIZE = 1_000_000  # On augmente la taille des chunks pour moins de fichiers
 
 PIECE_OFFSET = [0, 0, 1, 2, 3, 4] 

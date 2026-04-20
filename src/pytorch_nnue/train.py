@@ -4,15 +4,15 @@ from pytorch_nnue.model import NNUE
 from pytorch_nnue.data_loader import HalfKPDataset
 from pytorch_nnue.utils import weight_init, hybrid_loss, halfkp_collate_fn, sanitize_halfkp_indices, get_nstm_indices
 from torch.utils.data import DataLoader
-from torch.optim.lr_scheduler import CosineAnnealingLR
+from torch.optim.lr_scheduler import CosineAnnealingLR, LinearLR, ChainedScheduler
 from torch.optim import AdamW
 from torch.amp import autocast, GradScaler
-
+from torch.nn.utils import clip_grad_norm_
 import time
 # HYPERPARAMETERS
-EPOCHS = 100
+EPOCHS = 10
 BATCH_SIZE = 1024*32
-LR = 0.001
+LR = 0.0001
 
 def training_loop(dataloader, model, loss_fn, optimizer, scheduler, device, scaler):
     print("Training...")
@@ -21,7 +21,7 @@ def training_loop(dataloader, model, loss_fn, optimizer, scheduler, device, scal
     start = time.perf_counter()
     times = []
     for batch, (X, y) in enumerate(dataloader):
-        
+        # print(scheduler.get_last_lr())
         X_us, X_them = X
         
         score, WDL = y
@@ -42,13 +42,18 @@ def training_loop(dataloader, model, loss_fn, optimizer, scheduler, device, scal
         
         scaler.scale(loss).backward()
         # optimizer.step()
+        scaler.unscale_(optimizer)
+        clip_grad_norm_(model.parameters(), 2.0)
         scaler.step(optimizer)
         scaler.update()
+        scheduler.step() 
+
         # print(f"Batch {batch+1} - Elapsed time: {time.perf_counter() - start:.4f} ms")
         if batch > 50:
             times.append(time.perf_counter() - start)
         start = time.perf_counter()
         if batch % 100 == 0:
+            print(pred[:5], score[:5], WDL[:5])
             loss, current = loss.item(), batch * BATCH_SIZE + len(X)
             print(f"loss: {loss:>7f}")
         # if batch == 1000:
@@ -69,7 +74,7 @@ if __name__ == "__main__":
     print("Using {} device".format(device))
     is_cuda = device == "cuda"
 
-    dataset = HalfKPDataset(batch_size=BATCH_SIZE, shuffle=False)
+    dataset = HalfKPDataset(batch_size=BATCH_SIZE, shuffle=True, data_dir='D:/Projects/HalfKP Dataset Train')
 
     dataloader = DataLoader(
             dataset,
@@ -87,9 +92,10 @@ if __name__ == "__main__":
     model = torch.compile(model) if is_cuda else model
 
     optimizer = AdamW(model.parameters(), lr=LR)
-    scheduler = CosineAnnealingLR(optimizer, T_max=EPOCHS)
+    scheduler1 = CosineAnnealingLR(optimizer, T_max=EPOCHS * len(dataloader))#, eta_min=LR/100)  # Décay sur toute la durée de l'entraînement
+    scheduler2 = LinearLR(optimizer, start_factor=0.1, total_iters=5000)  # Warmup de 10 itérations
+    scheduler = ChainedScheduler([scheduler2, scheduler1])
 
     for epoch in range(EPOCHS):
         print(f"Epoch {epoch+1}\n-------------------------------")
         training_loop(dataloader, model, hybrid_loss, optimizer, scheduler, device, scaler)
-        scheduler.step() 

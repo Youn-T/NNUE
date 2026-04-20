@@ -12,6 +12,25 @@ class HalfKPDataset(IterableDataset):
         self.file_paths = sorted(glob.glob(os.path.join(data_dir, "*.pt")))
         self.batch_size = batch_size
         self.shuffle = shuffle
+        self._length = None
+
+    def __len__(self):
+        if self._length is None:
+            total_samples = 0
+            for path in self.file_paths:
+                # Extraire la taille à partir du nom du fichier wX_Y_szXXXX.pt
+                filename = os.path.basename(path)
+                try:
+                    # Trouve le bouton 'sz', prend ce qui suit et retire ce qui n'est pas un chiffre
+                    import re
+                    match = re.search(r'sz(\d+)', filename)
+                    if match:
+                        total_samples += int(match.group(1))
+                except (ValueError, IndexError):
+                    pass
+            # Le nombre de batches total est la somme des échantillons divisée par batch_size
+            self._length = (total_samples + self.batch_size - 1) // self.batch_size
+        return self._length
         
     def __iter__(self):
         worker_info = get_worker_info()
@@ -69,7 +88,7 @@ class HalfKPDataset(IterableDataset):
                 batch_nstm_kings = nstm_kings[start_idx:end_idx]
                 batch_wdl = wdl[start_idx:end_idx]
                 batch_score = score[start_idx:end_idx]
-                batch_score = centipawn_to_prob(batch_score)  # Convert centipawns to probabilities
+                batch_score = batch_score#centipawn_to_prob(batch_score)  # Convert centipawns to probabilities
                 batch_nstm = get_nstm_indices(batch_stm, batch_nstm_kings)
                 
                 batch_stm = torch.where((batch_stm == -1) | (batch_stm >= 40960), 40960, batch_stm)

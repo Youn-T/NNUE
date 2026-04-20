@@ -12,3 +12,4 @@ __pycache__/test_pgn.cpython-312-pytest-9.0.2.pyc
 /__pycache__
 /.conda
 /tests/__pycache__
+full_code.py

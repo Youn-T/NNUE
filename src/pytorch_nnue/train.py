@@ -14,7 +14,7 @@ EPOCHS = 10
 BATCH_SIZE = 1024*32
 LR = 0.0001
 
-def training_loop(dataloader, model, loss_fn, optimizer, scheduler, device, scaler):
+def training_loop(dataloader, model, loss_fn, optimizer, scheduler, device, scaler, alpha=1.0):
     print("Training...")
     model.train()
     
@@ -38,7 +38,7 @@ def training_loop(dataloader, model, loss_fn, optimizer, scheduler, device, scal
         with autocast(device_type=device):
             pred = model(X_us, X_them).squeeze(1)
             # print(pred[:5], score[:5], WDL[:5])
-            loss = loss_fn(pred, score, WDL, alpha=1.0)
+            loss = loss_fn(pred, score, WDL, alpha=alpha, mse_factor=100.0)#alpha)
         
         scaler.scale(loss).backward()
         # optimizer.step()
@@ -53,7 +53,7 @@ def training_loop(dataloader, model, loss_fn, optimizer, scheduler, device, scal
             times.append(time.perf_counter() - start)
         start = time.perf_counter()
         if batch % 100 == 0:
-            print(pred[:5], score[:5], WDL[:5])
+            # print(pred[:5], score[:5], WDL[:5])
             loss, current = loss.item(), batch * BATCH_SIZE + len(X)
             print(f"loss: {loss:>7f}")
         # if batch == 1000:
@@ -98,4 +98,6 @@ if __name__ == "__main__":
 
     for epoch in range(EPOCHS):
         print(f"Epoch {epoch+1}\n-------------------------------")
-        training_loop(dataloader, model, hybrid_loss, optimizer, scheduler, device, scaler)
+        alpha = 1.0 if epoch < 3 else 0.8 if epoch < 8 else 0.5  # Diminution progressive de l'importance du score dans la loss
+        training_loop(dataloader, model, hybrid_loss, optimizer, scheduler, device, scaler, alpha=alpha)
+        torch.save(model.state_dict(), f'weights/model_weights_{epoch}.pth')

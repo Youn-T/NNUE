@@ -13,9 +13,9 @@ class CReLU(torch.nn.Module):
         return torch.clamp(x, min=0.0, max=self.clip_value)
 
     
-def hybrid_loss(pred, score, WDL, alpha=0.5):
-    mse_loss = F.mse_loss(centipawn_to_prob(pred, scale=400.0), centipawn_to_prob(score, scale=400.0)) # score is already a probability in [0,1]
-    bce_loss = F.binary_cross_entropy_with_logits(pred, WDL.float())
+def hybrid_loss(pred, score, WDL, alpha=0.5, mse_factor=100.0):
+    mse_loss = F.mse_loss(centipawn_to_prob(pred, scale=400.0), centipawn_to_prob(score, scale=400.0)) * mse_factor # score is already a probability in [0,1]
+    bce_loss = F.binary_cross_entropy_with_logits(centipawn_to_prob(pred, scale=400.0), WDL.float())
     return alpha * mse_loss + (1 - alpha) * bce_loss
     
     

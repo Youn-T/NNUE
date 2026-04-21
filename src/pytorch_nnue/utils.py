@@ -13,11 +13,13 @@ class CReLU(torch.nn.Module):
         return torch.clamp(x, min=0.0, max=self.clip_value)
 
     
-def hybrid_loss(pred, score, WDL, alpha=0.5, mse_factor=100.0):
-    mse_loss = F.mse_loss(centipawn_to_prob(pred, scale=400.0), centipawn_to_prob(score, scale=400.0)) * mse_factor # score is already a probability in [0,1]
-    bce_loss = F.binary_cross_entropy_with_logits(centipawn_to_prob(pred, scale=400.0), WDL.float())
+def hybrid_loss(pred, score, WDL, alpha=0.005):
+    mse_loss = F.mse_loss(centipawn_to_prob(pred, scale=400.0), centipawn_to_prob(score, scale=400.0))
+    bce_loss = F.binary_cross_entropy_with_logits(pred / 400.0, WDL.float())
     return alpha * mse_loss + (1 - alpha) * bce_loss
-    
+
+def mse_loss(pred, target):
+    return F.mse_loss(centipawn_to_prob(pred, scale=400.0), centipawn_to_prob(target, scale=400.0))  
     
 def weight_init(m):
     if isinstance(m, torch.nn.Linear):
@@ -104,3 +106,45 @@ def halfkp_collate_fn(batch):
 def centipawn_to_prob(score, scale=400.0):
     # Beaucoup plus stable et rapide que 1 / (1 + exp(...))
     return torch.sigmoid(score / scale)
+
+
+def remove_dicte_keys(state_dict, prefix="_orig_mod."):
+    new_state_dict = {}
+    for key, value in state_dict.items():
+        # Only remove prefix if it exists
+        if key.startswith(prefix):
+            new_key = key[len(prefix):]
+        else:
+            new_key = key
+        new_state_dict[new_key] = value
+    return new_state_dict
+
+class AlphaScaler():
+    def __init__(self):
+        self.initial_alpha = 0.0
+        self.final_alpha = 0.0
+        self.total_steps = 0
+        self.current_step = 0
+
+    def set_constant_alpha(self, alpha):
+        self.initial_alpha = alpha
+        self.final_alpha = alpha
+        self.total_steps = 1
+        self.current_step = 0
+
+    def set_linear_schedule(self, initial_alpha, final_alpha, total_steps):
+        self.initial_alpha = initial_alpha
+        self.final_alpha = final_alpha
+        self.total_steps = total_steps
+        self.current_step = 0
+
+    def step(self):
+        if self.current_step < self.total_steps:
+            self.current_step += 1
+
+    def get_alpha(self):
+        if self.current_step >= self.total_steps:
+            return self.final_alpha
+        alpha = self.initial_alpha + (self.final_alpha - self.initial_alpha) * (self.current_step / self.total_steps)
+        return alpha
+        

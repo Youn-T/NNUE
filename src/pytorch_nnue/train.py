@@ -2,7 +2,7 @@ import torch
 from torch import nn
 from pytorch_nnue.model import NNUE
 from pytorch_nnue.data_loader import HalfKPDataset
-from pytorch_nnue.utils import weight_init, hybrid_loss, AlphaScaler
+from pytorch_nnue.utils import weight_init, hybrid_loss, AlphaScaler, mse_loss
 from torch.utils.data import DataLoader
 from torch.optim.lr_scheduler import CosineAnnealingLR, LinearLR, ChainedScheduler
 from torch.optim import AdamW
@@ -14,10 +14,9 @@ EPOCHS = 10
 BATCH_SIZE = 1024*32
 LR = 0.0001
 
-def training_loop(dataloader, model, loss_fn, optimizer, scheduler, device, scaler, alpha_scaler: AlphaScaler):
+def training_loop(dataloader, model, loss_fn, optimizer, scheduler, device, scaler, alpha_scaler: AlphaScaler, mse_fn):
     print("Training...")
     model.train()
-    
     start = time.perf_counter()
     times = []
     for batch, (X, y) in enumerate(dataloader):
@@ -32,7 +31,8 @@ def training_loop(dataloader, model, loss_fn, optimizer, scheduler, device, scal
         optimizer.zero_grad(set_to_none=True)
         with autocast(device_type=device):
             pred = model(X_us, X_them).squeeze(1)
-            loss = loss_fn(pred, score, WDL, alpha=alpha_scaler.get_alpha())
+            loss = loss_fn(pred, score, WDL, alpha=1 - alpha_scaler.get_alpha())
+            mse_loss = mse_fn(pred, score)
         
         scaler.scale(loss).backward()
         scaler.unscale_(optimizer)
@@ -48,7 +48,7 @@ def training_loop(dataloader, model, loss_fn, optimizer, scheduler, device, scal
         if batch % 100 == 0:
             # print(pred[:5], score[:5], WDL[:5])
             loss, current = loss.item(), batch * BATCH_SIZE + len(X)
-            print(f"loss: {loss:>7f} - alpha: {alpha_scaler.get_alpha():.4f}")
+            print(f"loss: {loss:>7f} - mse_loss: {mse_loss.item():>7f} - alpha: {alpha_scaler.get_alpha():.4f}")
 
 
 if __name__ == "__main__":
@@ -79,21 +79,21 @@ if __name__ == "__main__":
     scheduler = ChainedScheduler([scheduler2, scheduler1])
 
     alpha_scaler = AlphaScaler()
+    print(alpha_scaler)
 
     for epoch in range(EPOCHS):
         # Warmup jusqu'à 3 epochs, puis maintien d'un alpha de 0.005 (pondération du BCE)
         if epoch == 0:
-            alpha_scaler = alpha_scaler.set_linear_schedule(initial_alpha=0.0, final_alpha=0.005, total_steps=3 * len(dataloader))
+            alpha_scaler.set_linear_schedule(initial_alpha=0.0, final_alpha=0.005, total_steps=3 * len(dataloader))
         if epoch == 3:
-            alpha_scaler = alpha_scaler.set_constant_alpha(0.005)
+            alpha_scaler.set_constant_alpha(0.005)
         # if epoch < 2:
         #     alpha_scaler = alpha_scaler.set_constant_alpha(0.0)
         # elif epoch < 7:
         #     alpha_scaler = alpha_scaler.set_linear_schedule(initial_alpha=0.0, final_alpha=0.05, total_steps=5 * len(dataloader))
         # else:
         #     alpha_scaler = alpha_scaler.set_constant_alpha(0.05)    
-        
         print(f"Epoch {epoch+1}\n-------------------------------")
-        training_loop(dataloader, model, hybrid_loss, optimizer, scheduler, device, scaler, alpha_scaler)
+        training_loop(dataloader, model, hybrid_loss, optimizer, scheduler, device, scaler, alpha_scaler=alpha_scaler, mse_fn=mse_loss)
         torch.save(model.state_dict(), f'weights2/model_weights_{epoch}.pth')
         

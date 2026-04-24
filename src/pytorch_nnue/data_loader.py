@@ -56,8 +56,7 @@ class HalfKPDataset(IterableDataset):
             indices = data['indices'].to(torch.long)
             
             # Restore negative wrappers for values > 32767 stored in signed int16
-            indices = torch.where(indices < 0, indices + 65536, indices)
-            indices.clamp_(0, 40959)
+            indices = torch.where(indices == -1, 40960, indices)
             
             nstm_kings = data['nstm_kings'].to(torch.long)
             wdl = data['wdl'].to(torch.float32)

@@ -68,19 +68,21 @@ class HalfKPExporter(chess.pgn.BaseVisitor):
             
             if 'M' in val or '#' in val:
                 val_int = int(val.replace('M', '').replace('#', ''))
-                score_white = 10000 if val_int > 0 else -10000
+                score_played = 10000 if val_int > 0 else -10000
             else:
-                score_white = int(float(val) * 100)
+                score_played = int(float(val) * 100)
             
-            # CORRECTION : Selon tes tests, le label attendu est -score_white
-            # car après le coup, c'est au tour de l'adversaire (STM).
-            self.eval_labels.append(-score_white)
+            # Le score du PGN est relatif au joueur qui vient de jouer.
+            # Cependant, self.board.turn pointe maintenant vers le prochain joueur (Side To Move).
+            # Le score pour le STM est donc systématiquement l'inverse.
+            score_stm = -score_played
+            self.eval_labels.append(score_stm)
 
             # 2. Indices HalfKP (pour le joueur dont c'est le tour MAINTENANT)
             self.pos_indices.append(fast_halfkp_indices(self.board))
 
             # 3. WDL (Perspective Side To Move)
-            wdl = self.res_val if self.board.turn == chess.BLACK else 1.0 - self.res_val
+            wdl = self.res_val if self.board.turn == chess.WHITE else 1.0 - self.res_val
             self.wdl_labels.append(wdl)
 
             # 4. Rois (Perspective STM)

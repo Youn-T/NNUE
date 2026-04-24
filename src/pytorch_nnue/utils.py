@@ -121,6 +121,7 @@ def remove_dicte_keys(state_dict, prefix="_orig_mod."):
 
 class AlphaScaler():
     def __init__(self):
+        super().__init__()
         self.initial_alpha = 0.0
         self.final_alpha = 0.0
         self.total_steps = 0

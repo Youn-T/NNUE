@@ -75,6 +75,7 @@ class HalfKPExporter(chess.pgn.BaseVisitor):
             # Le score du PGN est relatif au joueur qui vient de jouer.
             # Cependant, self.board.turn pointe maintenant vers le prochain joueur (Side To Move).
             # Le score pour le STM est donc systématiquement l'inverse.
+            # Note à qui lira : cela signifie que cette LIGNE EST CORRECTE, même si ça peut sembler contre-intuitif au premier abord.
             score_stm = -score_played
             self.eval_labels.append(score_stm)
 

@@ -58,7 +58,7 @@ if __name__ == "__main__":
 
     model = NNUE().to(device)
     
-    state_dict = torch.load('weights/weights4/model_weights_9.pth')
+    state_dict = torch.load('weights/weights4_tuned4/model_weights_4.pth')
     state_dict = remove_dicte_keys(state_dict)
     
     model.load_state_dict(state_dict)

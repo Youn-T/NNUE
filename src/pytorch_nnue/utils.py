@@ -1,4 +1,5 @@
 import torch
+import math
 import torch.nn.functional as F
 
 HALFKP_NUM_EMBEDDINGS = 40960
@@ -111,6 +112,20 @@ def remove_dicte_keys(state_dict, prefix="_orig_mod."):
             new_key = key
         new_state_dict[new_key] = value
     return new_state_dict
+
+def cp_to_wdl(cp):
+    # On ramène souvent le cp à une échelle où 400 = gain quasi certain
+    # Le facteur 400 peut être ajusté selon ton "scaling"
+    return torch.sigmoid(cp / (400.0 / 4.394)) # 4.394 est une constante de logit
+
+def float_sigmoid(x):
+    return 1 / (1 + math.exp(-x))
+
+def cp_to_wdl_float(cp):
+    # On ramène souvent le cp à une échelle où 400 = gain quasi certain
+    # Le facteur 400 peut être ajusté selon ton "scaling"
+    return float_sigmoid(cp / (400.0 / 4.394)) # 4.394 est une constante de logit
+
 
 class AlphaScaler():
     def __init__(self):

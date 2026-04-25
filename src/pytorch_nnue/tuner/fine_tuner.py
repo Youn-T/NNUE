@@ -13,7 +13,7 @@ import time
 # HYPERPARAMETERS
 EPOCHS = 5
 BATCH_SIZE = 1024*32
-LR = 0.0001/10  # Diviser le taux d'apprentissage par 10 pour le fine-tuning
+LR = 0.00001  # Diviser le taux d'apprentissage par 10 pour le fine-tuning
 
 def training_loop(dataloader, model, loss_fn, optimizer, scheduler, device, scaler, alpha_scaler: AlphaScaler, mse_fn):
     print(f"Training... Batches per epoch: {len(dataloader)}")
@@ -97,12 +97,12 @@ if __name__ == "__main__":
 
     optimizer = AdamW(
         [
-        {"params": model.feature_transformer.parameters(), "lr": 0.0001},
-        {"params": model.linear_stack[0].parameters(), "lr": 0.0001},
-        {"params": model.linear_stack[2].parameters(), "lr": 0.00001},
-        {"params": model.linear_stack[4].parameters(), "lr": 0.00001},
-        {"params": model.linear_stack[6].parameters(), "lr": 0.00001}
-    ], lr=LR)
+        {"params": model.feature_transformer.parameters(), "lr": LR},
+        {"params": model.linear_stack[0].parameters(), "lr": LR},
+        {"params": model.linear_stack[2].parameters(), "lr": LR/10},
+        {"params": model.linear_stack[4].parameters(), "lr": LR/10},
+        {"params": model.linear_stack[6].parameters(), "lr": LR/10}
+    ], lr=LR/10)
     scheduler1 = CosineAnnealingLR(optimizer, T_max=EPOCHS * len(dataloader))
     scheduler = scheduler1
     
@@ -114,5 +114,5 @@ if __name__ == "__main__":
 
         print(f"Epoch {epoch+1}\n-------------------------------")
         training_loop(dataloader, model, hybrid_loss, optimizer, scheduler, device, scaler, alpha_scaler=alpha_scaler, mse_fn=mse_loss)
-        torch.save(model.state_dict(), f'weights/weights4_tuned3/model_weights_{epoch}.pth')
+        torch.save(model.state_dict(), f'weights/weights4_tuned4/model_weights_{epoch}.pth')
         

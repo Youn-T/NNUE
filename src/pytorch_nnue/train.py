@@ -71,6 +71,7 @@ if __name__ == "__main__":
 
     model = NNUE().to(device)
     model.apply(weight_init)
+    
     model = torch.compile(model) if is_cuda else model
 
     optimizer = AdamW(model.parameters(), lr=LR)
@@ -95,5 +96,5 @@ if __name__ == "__main__":
         #     alpha_scaler = alpha_scaler.set_constant_alpha(0.05)    
         print(f"Epoch {epoch+1}\n-------------------------------")
         training_loop(dataloader, model, hybrid_loss, optimizer, scheduler, device, scaler, alpha_scaler=alpha_scaler, mse_fn=mse_loss)
-        torch.save(model.state_dict(), f'weights2/model_weights_{epoch}.pth')
+        torch.save(model.state_dict(), f'weights/weights4/model_weights_{epoch}.pth')
         

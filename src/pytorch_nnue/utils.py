@@ -36,11 +36,12 @@ def weight_init(m):
             
 def get_nstm_indices(indices_white, black_king_sq):
     """
-    Version vectorisée pour PyTorch.
-    indices_white: Tensor de forme (N, 30) ou (30,)
-    black_king_sq: Tensor de forme (N, 1) ou (N,) ou un int
+    Calcule la perspective adverse (Noirs) à partir de la perspective STM (Blancs).
+    Garde le padding (-1) intact.
     """
     # 1. On isole la partie "Pièce + Case" (0-639)
+    # Si indices_white est -1, remainder sera -1 (ou 639 selon l'implémentation, 
+    # d'où l'importance du masque à la fin).
     remainder = indices_white % 640
     
     # 2. Extraire PieceOffset (0-9) et PieceSq (0-63)
@@ -48,32 +49,24 @@ def get_nstm_indices(indices_white, black_king_sq):
     p_sq_w = remainder % 64
     
     # 3. Transformer pour la perspective Noire
-    # Swap des offsets (0-4 <-> 5-9)
-    p_idx_b = (p_idx_w + 5) % 10
-    # Flip vertical de la case de la pièce (XOR 56)
-    p_sq_b = p_sq_w ^ 56
+    p_idx_b = (p_idx_w + 5) % 10 # Swap 0-4 <-> 5-9
+    p_sq_b = p_sq_w ^ 56         # Flip vertical de la case
     
-    # 4. Préparer la case du Roi Noir (vue par le noir : flip vertical)
-    # On s'assure que black_king_sq est un tenseur pour le broadcasting
+    # 4. Case du Roi Noir vue par le Noir (Flip vertical)
     if not isinstance(black_king_sq, torch.Tensor):
         black_king_sq = torch.tensor(black_king_sq, device=indices_white.device)
-    
     k_sq_b_view = black_king_sq ^ 56
 
-    # Si black_king_sq est (N,), on le transforme en (N, 1) pour le multiplier
-    # correctement avec indices_white qui est (N, 30)
     if k_sq_b_view.dim() == 1 and indices_white.dim() == 2:
         k_sq_b_view = k_sq_b_view.unsqueeze(-1)
     
     # 5. Reconstruire l'indice final
     indices_black = (k_sq_b_view * 640) + (p_idx_b * 64) + p_sq_b
     
-    # Restaurer le padding à -1
+    # --- SÉCURITÉ CRITIQUE ---
+    # Si l'indice d'origine était du padding (-1), on force le résultat à -1
+    # Cela évite que le calcul (k_sq * 640 + ...) ne crée une pièce imaginaire.
     indices_black = torch.where(indices_white == -1, -1, indices_black)
-    
-    # S'assurer que les indices convertis restent valides entre 0 et 40959 
-    # Mettre à 0 ou -1 pour éviter l'erreur cuda "index out of range"
-    indices_black = torch.where((indices_black >= 40960) | (indices_black < -1), -1, indices_black)
     
     return indices_black
 

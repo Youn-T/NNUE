@@ -51,15 +51,11 @@ class HalfKPDataset(IterableDataset):
         for path in files_to_process:
             # 2. Load the entire file tensor at once into memory (orders of magnitude faster)
             data = torch.load(path, weights_only=True)
-            
-            # Extract and parse
-            indices = data['indices'].to(torch.long)
-            
-            # Restore negative wrappers for values > 32767 stored in signed int16
-            indices = torch.where(indices == -1, 40960, indices)
-            
+            indices = data['indices'].to(torch.long) 
             nstm_kings = data['nstm_kings'].to(torch.long)
             wdl = data['wdl'].to(torch.float32)
+            score = data['score'].to(torch.float32)
+            wdl = torch.ones_like(wdl) - wdl # /!\ Provisoire ! A inverser si l'on regénère le dataset, corrige le bug  d'inversion du label WDL
             score = data['score'].to(torch.float32)
             
             # Compute nstm_indices fully vectorized over the whole chunk!
@@ -87,11 +83,11 @@ class HalfKPDataset(IterableDataset):
                 batch_nstm_kings = nstm_kings[start_idx:end_idx]
                 batch_wdl = wdl[start_idx:end_idx]
                 batch_score = score[start_idx:end_idx]
-                batch_score = batch_score#centipawn_to_prob(batch_score)  # Convert centipawns to probabilities
+                # batch_score = batch_score#centipawn_to_prob(batch_score)  # Convert centipawns to probabilities
                 batch_nstm = get_nstm_indices(batch_stm, batch_nstm_kings)
                 
-                batch_stm = torch.where((batch_stm == -1) | (batch_stm >= 40960), 40960, batch_stm)
-                batch_nstm = torch.where((batch_nstm == -1) | (batch_nstm >= 40960), 40960, batch_nstm)
+                batch_stm = torch.where(batch_stm == -1, 40960, batch_stm)
+                batch_nstm = torch.where(batch_nstm == -1, 40960, batch_nstm)
 
                 yield (batch_stm, batch_nstm), (batch_score, batch_wdl)
 

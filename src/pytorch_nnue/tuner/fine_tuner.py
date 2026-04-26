@@ -76,7 +76,7 @@ if __name__ == "__main__":
     print("Using {} device".format(device))
     is_cuda = device == "cuda"
 
-    dataset = HalfKPDatasetTuning(batch_size=BATCH_SIZE, shuffle=True, data_dir='D:/Projects/HalfKP Dataset Tuning/Base', tuning_data_dir='D:/Projects/HalfKP Dataset Tuning/Lichess')
+    dataset = HalfKPDatasetTuning(batch_size=BATCH_SIZE, shuffle=True, data_dir='D:/Projects/HalfKP Dataset Tuning/Base', tuning_data_dir='D:/Projects/HalfKP Dataset Tuning/Lichess2')
     # dataset = HalfKPDataset(batch_size=BATCH_SIZE, shuffle=True, data_dir='D:/Projects/HalfKP Dataset Train')
 
     dataloader = DataLoader(
@@ -114,5 +114,5 @@ if __name__ == "__main__":
 
         print(f"Epoch {epoch+1}\n-------------------------------")
         training_loop(dataloader, model, hybrid_loss, optimizer, scheduler, device, scaler, alpha_scaler=alpha_scaler, mse_fn=mse_loss)
-        torch.save(model.state_dict(), f'weights/weights4_tuned4/model_weights_{epoch}.pth')
+        torch.save(model.state_dict(), f'weights/weights4_tuned5/model_weights_{epoch}.pth')
         

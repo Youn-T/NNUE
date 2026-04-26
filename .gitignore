@@ -13,5 +13,12 @@ __pycache__/test_pgn.cpython-312-pytest-9.0.2.pyc
 /.conda
 /tests/__pycache__
 full_code.py
-/weights
+# /weights
 /data/dataset/
+/weights/weights1
+/weights/weights2
+/weights/weights3
+/weights/weights4_tuned1
+/weights/weights4_tuned2
+/weights/weights4_tuned3
+/weights/bins/

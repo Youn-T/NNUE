@@ -1,0 +1,144 @@
+LR = 0.00001 adaptative
+Epoch 1
+-------------------------------
+Training... Batches per epoch: 1526
+loss: 0.003846 - mse_loss: 0.002190 - alpha: 0.0025
+loss: 0.003834 - mse_loss: 0.002192 - alpha: 0.0025
+loss: 0.004073 - mse_loss: 0.002434 - alpha: 0.0025
+loss: 0.016203 - mse_loss: 0.014692 - alpha: 0.0025
+loss: 0.013526 - mse_loss: 0.011955 - alpha: 0.0025
+loss: 0.003639 - mse_loss: 0.002007 - alpha: 0.0025
+loss: 0.004026 - mse_loss: 0.002381 - alpha: 0.0025
+loss: 0.003937 - mse_loss: 0.002295 - alpha: 0.0025
+loss: 0.003974 - mse_loss: 0.002323 - alpha: 0.0025
+loss: 0.003401 - mse_loss: 0.001761 - alpha: 0.0025
+loss: 0.015265 - mse_loss: 0.013742 - alpha: 0.0025
+loss: 0.003999 - mse_loss: 0.002352 - alpha: 0.0025
+loss: 0.004029 - mse_loss: 0.002380 - alpha: 0.0025
+loss: 0.003906 - mse_loss: 0.002258 - alpha: 0.0025
+loss: 0.003967 - mse_loss: 0.002324 - alpha: 0.0025
+loss: 0.003582 - mse_loss: 0.001940 - alpha: 0.0025
+c:\Users\yount\Documents\projets\Pytorch NNUE\src\pytorch_nnue\tuner\fine_tuner.py:23: UserWarning: Length of IterableDataset <pytorch_nnue.tuner.tuner_data_loader.HalfKPDatasetTuning object at 0x0000024DF0865C10> was reported to be 1526(when accessing len(dataloader)), but 1527 samples have been fetched. For multiprocessing data-loading, this could be caused by not properly configuring the IterableDataset replica at each worker. Please see https://pytorch.org/docs/stable/data.html#torch.utils.data.IterableDataset for examples.
+  for batch, (X, y) in enumerate(dataloader):
+c:\Users\yount\Documents\projets\Pytorch NNUE\src\pytorch_nnue\tuner\fine_tuner.py:23: UserWarning: Length of IterableDataset <pytorch_nnue.tuner.tuner_data_loader.HalfKPDatasetTuning object at 0x0000024DF0865C10> was reported to be 1526(when accessing len(dataloader)), but 1528 samples have been fetched. For multiprocessing data-loading, this could be caused by not properly configuring the IterableDataset replica at each worker. Please see https://pytorch.org/docs/stable/data.html#torch.utils.data.IterableDataset for examples.
+  for batch, (X, y) in enumerate(dataloader):
+c:\Users\yount\Documents\projets\Pytorch NNUE\src\pytorch_nnue\tuner\fine_tuner.py:23: UserWarning: Length of IterableDataset <pytorch_nnue.tuner.tuner_data_loader.HalfKPDatasetTuning object at 0x0000024DF0865C10> was reported to be 1526(when accessing len(dataloader)), but 1529 samples have been fetched. For multiprocessing data-loading, this could be caused by not properly configuring the IterableDataset replica at each worker. Please see https://pytorch.org/docs/stable/data.html#torch.utils.data.IterableDataset for examples.
+  for batch, (X, y) in enumerate(dataloader):
+c:\Users\yount\Documents\projets\Pytorch NNUE\src\pytorch_nnue\tuner\fine_tuner.py:23: UserWarning: Length of IterableDataset <pytorch_nnue.tuner.tuner_data_loader.HalfKPDatasetTuning object at 0x0000024DF0865C10> was reported to be 1526(when accessing len(dataloader)), but 1530 samples have been fetched. For multiprocessing data-loading, this could be caused by not properly configuring the IterableDataset replica at each worker. Please see https://pytorch.org/docs/stable/data.html#torch.utils.data.IterableDataset for examples.
+  for batch, (X, y) in enumerate(dataloader):
+c:\Users\yount\Documents\projets\Pytorch NNUE\src\pytorch_nnue\tuner\fine_tuner.py:23: UserWarning: Length of IterableDataset <pytorch_nnue.tuner.tuner_data_loader.HalfKPDatasetTuning object at 0x0000024DF0865C10> was reported to be 1526(when accessing len(dataloader)), but 1531 samples have been fetched. For multiprocessing data-loading, this could be caused by not properly configuring the IterableDataset replica at each worker. Please see https://pytorch.org/docs/stable/data.html#torch.utils.data.IterableDataset for examples.
+  for batch, (X, y) in enumerate(dataloader):
+c:\Users\yount\Documents\projets\Pytorch NNUE\src\pytorch_nnue\tuner\fine_tuner.py:23: UserWarning: Length of IterableDataset <pytorch_nnue.tuner.tuner_data_loader.HalfKPDatasetTuning object at 0x0000024DF0865C10> was reported to be 1526(when accessing len(dataloader)), but 1532 samples have been fetched. For multiprocessing data-loading, this could be caused by not properly configuring the IterableDataset replica at each worker. Please see https://pytorch.org/docs/stable/data.html#torch.utils.data.IterableDataset for examples.
+  for batch, (X, y) in enumerate(dataloader):
+c:\Users\yount\Documents\projets\Pytorch NNUE\src\pytorch_nnue\tuner\fine_tuner.py:23: UserWarning: Length of IterableDataset <pytorch_nnue.tuner.tuner_data_loader.HalfKPDatasetTuning object at 0x0000024DF0865C10> was reported to be 1526(when accessing len(dataloader)), but 1533 samples have been fetched. For multiprocessing data-loading, this could be caused by not properly configuring the IterableDataset replica at each worker. Please see https://pytorch.org/docs/stable/data.html#torch.utils.data.IterableDataset for examples.
+  for batch, (X, y) in enumerate(dataloader):
+c:\Users\yount\Documents\projets\Pytorch NNUE\src\pytorch_nnue\tuner\fine_tuner.py:23: UserWarning: Length of IterableDataset <pytorch_nnue.tuner.tuner_data_loader.HalfKPDatasetTuning object at 0x0000024DF0865C10> was reported to be 1526(when accessing len(dataloader)), but 1534 samples have been fetched. For multiprocessing data-loading, this could be caused by not properly configuring the IterableDataset replica at each worker. Please see https://pytorch.org/docs/stable/data.html#torch.utils.data.IterableDataset for examples.
+  for batch, (X, y) in enumerate(dataloader):
+c:\Users\yount\Documents\projets\Pytorch NNUE\src\pytorch_nnue\tuner\fine_tuner.py:23: UserWarning: Length of IterableDataset <pytorch_nnue.tuner.tuner_data_loader.HalfKPDatasetTuning object at 0x0000024DF0865C10> was reported to be 1526(when accessing len(dataloader)), but 1535 samples have been fetched. For multiprocessing data-loading, this could be caused by not properly configuring the IterableDataset replica at each worker. Please see https://pytorch.org/docs/stable/data.html#torch.utils.data.IterableDataset for examples.
+  for batch, (X, y) in enumerate(dataloader):
+c:\Users\yount\Documents\projets\Pytorch NNUE\src\pytorch_nnue\tuner\fine_tuner.py:23: UserWarning: Length of IterableDataset <pytorch_nnue.tuner.tuner_data_loader.HalfKPDatasetTuning object at 0x0000024DF0865C10> was reported to be 1526(when accessing len(dataloader)), but 1536 samples have been fetched. For multiprocessing data-loading, this could be caused by not properly configuring the IterableDataset replica at each worker. Please see https://pytorch.org/docs/stable/data.html#torch.utils.data.IterableDataset for examples.
+  for batch, (X, y) in enumerate(dataloader):
+c:\Users\yount\Documents\projets\Pytorch NNUE\src\pytorch_nnue\tuner\fine_tuner.py:23: UserWarning: Length of IterableDataset <pytorch_nnue.tuner.tuner_data_loader.HalfKPDatasetTuning object at 0x0000024DF0865C10> was reported to be 1526(when accessing len(dataloader)), but 1537 samples have been fetched. For multiprocessing data-loading, this could be caused by not properly configuring the IterableDataset replica at each worker. Please see https://pytorch.org/docs/stable/data.html#torch.utils.data.IterableDataset for examples.
+  for batch, (X, y) in enumerate(dataloader):
+c:\Users\yount\Documents\projets\Pytorch NNUE\src\pytorch_nnue\tuner\fine_tuner.py:23: UserWarning: Length of IterableDataset <pytorch_nnue.tuner.tuner_data_loader.HalfKPDatasetTuning object at 0x0000024DF0865C10> was reported to be 1526(when accessing len(dataloader)), but 1538 samples have been fetched. For multiprocessing data-loading, this could be caused by not properly configuring the IterableDataset replica at each worker. Please see https://pytorch.org/docs/stable/data.html#torch.utils.data.IterableDataset for examples.
+  for batch, (X, y) in enumerate(dataloader):
+c:\Users\yount\Documents\projets\Pytorch NNUE\src\pytorch_nnue\tuner\fine_tuner.py:23: UserWarning: Length of IterableDataset <pytorch_nnue.tuner.tuner_data_loader.HalfKPDatasetTuning object at 0x0000024DF0865C10> was reported to be 1526(when accessing len(dataloader)), but 1539 samples have been fetched. For multiprocessing data-loading, this could be caused by not properly configuring the IterableDataset replica at each worker. Please see https://pytorch.org/docs/stable/data.html#torch.utils.data.IterableDataset for examples.
+  for batch, (X, y) in enumerate(dataloader):
+c:\Users\yount\Documents\projets\Pytorch NNUE\src\pytorch_nnue\tuner\fine_tuner.py:23: UserWarning: Length of IterableDataset <pytorch_nnue.tuner.tuner_data_loader.HalfKPDatasetTuning object at 0x0000024DF0865C10> was reported to be 1526(when accessing len(dataloader)), but 1540 samples have been fetched. For multiprocessing data-loading, this could be caused by not properly configuring the IterableDataset replica at each worker. Please see https://pytorch.org/docs/stable/data.html#torch.utils.data.IterableDataset for examples.
+  for batch, (X, y) in enumerate(dataloader):
+c:\Users\yount\Documents\projets\Pytorch NNUE\src\pytorch_nnue\tuner\fine_tuner.py:23: UserWarning: Length of IterableDataset <pytorch_nnue.tuner.tuner_data_loader.HalfKPDatasetTuning object at 0x0000024DF0865C10> was reported to be 1526(when accessing len(dataloader)), but 1541 samples have been fetched. For multiprocessing data-loading, this could be caused by not properly configuring the IterableDataset replica at each worker. Please see https://pytorch.org/docs/stable/data.html#torch.utils.data.IterableDataset for examples.
+  for batch, (X, y) in enumerate(dataloader):
+c:\Users\yount\Documents\projets\Pytorch NNUE\src\pytorch_nnue\tuner\fine_tuner.py:23: UserWarning: Length of IterableDataset <pytorch_nnue.tuner.tuner_data_loader.HalfKPDatasetTuning object at 0x0000024DF0865C10> was reported to be 1526(when accessing len(dataloader)), but 1542 samples have been fetched. For multiprocessing data-loading, this could be caused by not properly configuring the IterableDataset replica at each worker. Please see https://pytorch.org/docs/stable/data.html#torch.utils.data.IterableDataset for examples.
+  for batch, (X, y) in enumerate(dataloader):
+c:\Users\yount\Documents\projets\Pytorch NNUE\src\pytorch_nnue\tuner\fine_tuner.py:23: UserWarning: Length of IterableDataset <pytorch_nnue.tuner.tuner_data_loader.HalfKPDatasetTuning object at 0x0000024DF0865C10> was reported to be 1526(when accessing len(dataloader)), but 1543 samples have been fetched. For multiprocessing data-loading, this could be caused by not properly configuring the IterableDataset replica at each worker. Please see https://pytorch.org/docs/stable/data.html#torch.utils.data.IterableDataset for examples.
+  for batch, (X, y) in enumerate(dataloader):
+c:\Users\yount\Documents\projets\Pytorch NNUE\src\pytorch_nnue\tuner\fine_tuner.py:23: UserWarning: Length of IterableDataset <pytorch_nnue.tuner.tuner_data_loader.HalfKPDatasetTuning object at 0x0000024DF0865C10> was reported to be 1526(when accessing len(dataloader)), but 1544 samples have been fetched. For multiprocessing data-loading, this could be caused by not properly configuring the IterableDataset replica at each worker. Please see https://pytorch.org/docs/stable/data.html#torch.utils.data.IterableDataset for examples.
+  for batch, (X, y) in enumerate(dataloader):
+c:\Users\yount\Documents\projets\Pytorch NNUE\src\pytorch_nnue\tuner\fine_tuner.py:23: UserWarning: Length of IterableDataset <pytorch_nnue.tuner.tuner_data_loader.HalfKPDatasetTuning object at 0x0000024DF0865C10> was reported to be 1526(when accessing len(dataloader)), but 1545 samples have been fetched. For multiprocessing data-loading, this could be caused by not properly configuring the IterableDataset replica at each worker. Please see https://pytorch.org/docs/stable/data.html#torch.utils.data.IterableDataset for examples.
+  for batch, (X, y) in enumerate(dataloader):
+c:\Users\yount\Documents\projets\Pytorch NNUE\src\pytorch_nnue\tuner\fine_tuner.py:23: UserWarning: Length of IterableDataset <pytorch_nnue.tuner.tuner_data_loader.HalfKPDatasetTuning object at 0x0000024DF0865C10> was reported to be 1526(when accessing len(dataloader)), but 1546 samples have been fetched. For multiprocessing data-loading, this could be caused by not properly configuring the IterableDataset replica at each worker. Please see https://pytorch.org/docs/stable/data.html#torch.utils.data.IterableDataset for examples.
+  for batch, (X, y) in enumerate(dataloader):
+c:\Users\yount\Documents\projets\Pytorch NNUE\src\pytorch_nnue\tuner\fine_tuner.py:23: UserWarning: Length of IterableDataset <pytorch_nnue.tuner.tuner_data_loader.HalfKPDatasetTuning object at 0x0000024DF0865C10> was reported to be 1526(when accessing len(dataloader)), but 1547 samples have been fetched. For multiprocessing data-loading, this could be caused by not properly configuring the IterableDataset replica at each worker. Please see https://pytorch.org/docs/stable/data.html#torch.utils.data.IterableDataset for examples.
+  for batch, (X, y) in enumerate(dataloader):
+c:\Users\yount\Documents\projets\Pytorch NNUE\src\pytorch_nnue\tuner\fine_tuner.py:23: UserWarning: Length of IterableDataset <pytorch_nnue.tuner.tuner_data_loader.HalfKPDatasetTuning object at 0x0000024DF0865C10> was reported to be 1526(when accessing len(dataloader)), but 1548 samples have been fetched. For multiprocessing data-loading, this could be caused by not properly configuring the IterableDataset replica at each worker. Please see https://pytorch.org/docs/stable/data.html#torch.utils.data.IterableDataset for examples.
+  for batch, (X, y) in enumerate(dataloader):
+c:\Users\yount\Documents\projets\Pytorch NNUE\src\pytorch_nnue\tuner\fine_tuner.py:23: UserWarning: Length of IterableDataset <pytorch_nnue.tuner.tuner_data_loader.HalfKPDatasetTuning object at 0x0000024DF0865C10> was reported to be 1526(when accessing len(dataloader)), but 1549 samples have been fetched. For multiprocessing data-loading, this could be caused by not properly configuring the IterableDataset replica at each worker. Please see https://pytorch.org/docs/stable/data.html#torch.utils.data.IterableDataset for examples.
+  for batch, (X, y) in enumerate(dataloader):
+c:\Users\yount\Documents\projets\Pytorch NNUE\src\pytorch_nnue\tuner\fine_tuner.py:23: UserWarning: Length of IterableDataset <pytorch_nnue.tuner.tuner_data_loader.HalfKPDatasetTuning object at 0x0000024DF0865C10> was reported to be 1526(when accessing len(dataloader)), but 1550 samples have been fetched. For multiprocessing data-loading, this could be caused by not properly configuring the IterableDataset replica at each worker. Please see https://pytorch.org/docs/stable/data.html#torch.utils.data.IterableDataset for examples.
+  for batch, (X, y) in enumerate(dataloader):
+Epoch 2
+-------------------------------
+Training... Batches per epoch: 1526
+loss: 0.003863 - mse_loss: 0.002207 - alpha: 0.0025
+loss: 0.003921 - mse_loss: 0.002278 - alpha: 0.0025
+loss: 0.003852 - mse_loss: 0.002201 - alpha: 0.0025
+loss: 0.003824 - mse_loss: 0.002173 - alpha: 0.0025
+loss: 0.013501 - mse_loss: 0.011932 - alpha: 0.0025
+loss: 0.003751 - mse_loss: 0.002099 - alpha: 0.0025
+loss: 0.014104 - mse_loss: 0.012578 - alpha: 0.0025
+loss: 0.003819 - mse_loss: 0.002165 - alpha: 0.0025
+loss: 0.003629 - mse_loss: 0.001993 - alpha: 0.0025
+loss: 0.004003 - mse_loss: 0.002361 - alpha: 0.0025
+loss: 0.004070 - mse_loss: 0.002427 - alpha: 0.0025
+loss: 0.003605 - mse_loss: 0.001971 - alpha: 0.0025
+loss: 0.003894 - mse_loss: 0.002249 - alpha: 0.0025
+loss: 0.003405 - mse_loss: 0.001762 - alpha: 0.0025
+loss: 0.003968 - mse_loss: 0.002323 - alpha: 0.0025
+loss: 0.003536 - mse_loss: 0.001898 - alpha: 0.0025
+Epoch 3
+-------------------------------
+Training... Batches per epoch: 1526
+loss: 0.004030 - mse_loss: 0.002386 - alpha: 0.0025
+loss: 0.013846 - mse_loss: 0.012332 - alpha: 0.0025
+loss: 0.003975 - mse_loss: 0.002332 - alpha: 0.0025
+loss: 0.003484 - mse_loss: 0.001849 - alpha: 0.0025
+loss: 0.003930 - mse_loss: 0.002285 - alpha: 0.0025
+loss: 0.003583 - mse_loss: 0.001945 - alpha: 0.0025
+loss: 0.003971 - mse_loss: 0.002329 - alpha: 0.0025
+loss: 0.003808 - mse_loss: 0.002154 - alpha: 0.0025
+loss: 0.003877 - mse_loss: 0.002234 - alpha: 0.0025
+loss: 0.003444 - mse_loss: 0.001805 - alpha: 0.0025
+loss: 0.003552 - mse_loss: 0.001914 - alpha: 0.0025
+loss: 0.003885 - mse_loss: 0.002237 - alpha: 0.0025
+loss: 0.003825 - mse_loss: 0.002177 - alpha: 0.0025
+loss: 0.003797 - mse_loss: 0.002152 - alpha: 0.0025
+loss: 0.013869 - mse_loss: 0.012360 - alpha: 0.0025
+loss: 0.003959 - mse_loss: 0.002307 - alpha: 0.0025
+Epoch 4
+-------------------------------
+Training... Batches per epoch: 1526
+loss: 0.003797 - mse_loss: 0.002151 - alpha: 0.0025
+loss: 0.013426 - mse_loss: 0.011912 - alpha: 0.0025
+loss: 0.003830 - mse_loss: 0.002185 - alpha: 0.0025
+loss: 0.003822 - mse_loss: 0.002170 - alpha: 0.0025
+loss: 0.003830 - mse_loss: 0.002176 - alpha: 0.0025
+loss: 0.003574 - mse_loss: 0.001938 - alpha: 0.0025
+loss: 0.003851 - mse_loss: 0.002206 - alpha: 0.0025
+loss: 0.003802 - mse_loss: 0.002155 - alpha: 0.0025
+loss: 0.003807 - mse_loss: 0.002162 - alpha: 0.0025
+loss: 0.003407 - mse_loss: 0.001771 - alpha: 0.0025
+loss: 0.003840 - mse_loss: 0.002197 - alpha: 0.0025
+loss: 0.003820 - mse_loss: 0.002177 - alpha: 0.0025
+loss: 0.014179 - mse_loss: 0.012690 - alpha: 0.0025
+loss: 0.012139 - mse_loss: 0.010590 - alpha: 0.0025
+loss: 0.003831 - mse_loss: 0.002181 - alpha: 0.0025
+loss: 0.013088 - mse_loss: 0.011567 - alpha: 0.0025
+Epoch 5
+-------------------------------
+Training... Batches per epoch: 1526
+loss: 0.003846 - mse_loss: 0.002196 - alpha: 0.0025
+loss: 0.003446 - mse_loss: 0.001805 - alpha: 0.0025
+loss: 0.003874 - mse_loss: 0.002229 - alpha: 0.0025
+loss: 0.003833 - mse_loss: 0.002190 - alpha: 0.0025
+loss: 0.003775 - mse_loss: 0.002121 - alpha: 0.0025
+loss: 0.003464 - mse_loss: 0.001827 - alpha: 0.0025
+loss: 0.003518 - mse_loss: 0.001884 - alpha: 0.0025
+loss: 0.003929 - mse_loss: 0.002288 - alpha: 0.0025
+loss: 0.013990 - mse_loss: 0.012479 - alpha: 0.0025
+loss: 0.014010 - mse_loss: 0.012511 - alpha: 0.0025
+loss: 0.003818 - mse_loss: 0.002166 - alpha: 0.0025
+loss: 0.003756 - mse_loss: 0.002104 - alpha: 0.0025
+loss: 0.003750 - mse_loss: 0.002106 - alpha: 0.0025
+loss: 0.013941 - mse_loss: 0.012431 - alpha: 0.0025
+loss: 0.003934 - mse_loss: 0.002292 - alpha: 0.0025
+loss: 0.003825 - mse_loss: 0.002182 - alpha: 0.0025

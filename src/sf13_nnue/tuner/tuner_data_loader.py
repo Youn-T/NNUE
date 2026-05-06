@@ -3,7 +3,7 @@ import glob
 import os
 import random
 from torch.utils.data import IterableDataset, get_worker_info
-from pytorch_nnue.utils import get_nstm_indices, centipawn_to_prob, cp_to_wdl
+from sf13_nnue.utils import get_nstm_indices, centipawn_to_prob, cp_to_wdl
 
 class HalfKPDatasetTuning(IterableDataset):
     def __init__(self, data_dir='data/halfkp_data',tuning_data_dir='data/tuning_data', batch_size=8192, shuffle=True):

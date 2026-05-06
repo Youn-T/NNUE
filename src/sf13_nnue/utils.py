@@ -1,6 +1,7 @@
 import torch
 import math
 import torch.nn.functional as F
+import os
 
 HALFKP_NUM_EMBEDDINGS = 40960
 
@@ -157,3 +158,39 @@ class AlphaScaler():
         alpha = self.initial_alpha + (self.final_alpha - self.initial_alpha) * (self.current_step / self.total_steps)
         return alpha
         
+        
+        
+
+def save_checkpoint(model, optimizer, scheduler, alpha_scaler, epoch, path):
+    """
+    Sauvegarde le modèle en nettoyant les préfixes de torch.compile 
+    et en incluant les états de l'entraînement.
+    """
+    # 1. Récupérer le state_dict
+    raw_state_dict = model.state_dict()
+    
+    # 2. Nettoyer les clés (supprimer '_orig_mod.')
+    # C'est CRUCIAL pour que serialize.py reconnaisse 'input.weight', etc.
+    clean_state_dict = {k.replace('_orig_mod.', ''): v for k, v in raw_state_dict.items()}
+    
+    # 3. Préparer l'objet complet (pour le resume)
+    checkpoint = {
+        'epoch': epoch,
+        'state_dict': clean_state_dict,
+        'optimizer_state_dict': optimizer.state_dict(),
+        'scheduler_state_dict': scheduler.state_dict(),
+        'alpha_scaler_state': alpha_scaler.state_dict() if hasattr(alpha_scaler, 'state_dict') else alpha_scaler,
+    }
+    
+    # Créer le dossier si nécessaire
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    
+    # Sauvegarde
+    torch.save(checkpoint, path)
+    
+    # Optionnel : Sauvegarder un fichier "weights only" 
+    # Plus facile à pointer pour le script serialize.py
+    weights_path = path.replace('.pt', '_weights.pt')
+    torch.save(clean_state_dict, weights_path)
+    
+    print(f"Checkpoint sauvé : {path}")

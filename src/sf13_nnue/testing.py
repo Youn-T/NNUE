@@ -1,8 +1,8 @@
 import torch
 from torch import nn
-from pytorch_nnue.model import NNUE
-from pytorch_nnue.data_loader import HalfKPDataset
-from pytorch_nnue.utils import weight_init, mse_loss, halfkp_collate_fn, sanitize_halfkp_indices, get_nstm_indices, remove_dicte_keys
+from sf13_nnue.model import NNUE
+from sf13_nnue.data_loader import HalfKPDataset
+from sf13_nnue.utils import weight_init, mse_loss, halfkp_collate_fn, sanitize_halfkp_indices, get_nstm_indices, remove_dicte_keys
 from torch.utils.data import DataLoader
 from torch.optim.lr_scheduler import CosineAnnealingLR, LinearLR, ChainedScheduler
 from torch.optim import AdamW

@@ -1,8 +1,8 @@
 import torch
 from torch.utils.data import DataLoader
 
-from pytorch_nnue.data_loader import HalfKPDataset
-from pytorch_nnue.utils import get_nstm_indices, halfkp_collate_fn
+from sf13_nnue.data_loader import HalfKPDataset
+from sf13_nnue.utils import get_nstm_indices, halfkp_collate_fn
 
 
 def _save_chunk(path, indices, wdl, score, stm_kings, nstm_kings):

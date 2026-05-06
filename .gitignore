@@ -23,3 +23,5 @@ full_code.py
 /weights/weights4_tuned3
 /weights/bins/
 /src/sf13_nnue.egg-info/
+*.pt
+/src/sf13_nnue/__pycache__

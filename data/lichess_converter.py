@@ -1,5 +1,5 @@
 import os, json, chess, torch, multiprocessing as mp
-from pytorch_nnue.utils import cp_to_wdl_float
+from sf13_nnue.utils import cp_to_wdl_float
 
 # --- CONFIGURATION ---
 INPUT_FILE = "D:/Projects/Lichess Dataset/lichess_db_eval.jsonl/lichess_db_eval.jsonl"

@@ -1,8 +1,8 @@
 import torch
 from torch import nn
-from pytorch_nnue.model import NNUE
-from pytorch_nnue.data_loader import HalfKPDataset
-from pytorch_nnue.utils import weight_init, hybrid_loss, AlphaScaler, mse_loss
+from sf13_nnue.model import NNUE
+from sf13_nnue.data_loader import HalfKPDataset
+from sf13_nnue.utils import weight_init, hybrid_loss, AlphaScaler, mse_loss, save_checkpoint
 from torch.utils.data import DataLoader
 from torch.optim.lr_scheduler import CosineAnnealingLR, LinearLR, ChainedScheduler
 from torch.optim import AdamW
@@ -46,7 +46,6 @@ def training_loop(dataloader, model, loss_fn, optimizer, scheduler, device, scal
             times.append(time.perf_counter() - start)
         start = time.perf_counter()
         if batch % 100 == 0:
-            # print(pred[:5], score[:5], WDL[:5])
             loss, current = loss.item(), batch * BATCH_SIZE + len(X)
             print(f"loss: {loss:>7f} - mse_loss: {mse_loss.item():>7f} - alpha: {alpha_scaler.get_alpha():.4f}")
 
@@ -86,15 +85,10 @@ if __name__ == "__main__":
         # Warmup jusqu'à 3 epochs, puis maintien d'un alpha de 0.005 (pondération du BCE)
         if epoch == 0:
             alpha_scaler.set_linear_schedule(initial_alpha=0.0, final_alpha=0.005, total_steps=3 * len(dataloader))
-        if epoch == 3:
+        if epoch == 1:
             alpha_scaler.set_constant_alpha(0.005)
-        # if epoch < 2:
-        #     alpha_scaler = alpha_scaler.set_constant_alpha(0.0)
-        # elif epoch < 7:
-        #     alpha_scaler = alpha_scaler.set_linear_schedule(initial_alpha=0.0, final_alpha=0.05, total_steps=5 * len(dataloader))
-        # else:
-        #     alpha_scaler = alpha_scaler.set_constant_alpha(0.05)    
+
         print(f"Epoch {epoch+1}\n-------------------------------")
         training_loop(dataloader, model, hybrid_loss, optimizer, scheduler, device, scaler, alpha_scaler=alpha_scaler, mse_fn=mse_loss)
-        torch.save(model.state_dict(), f'weights/weights4/model_weights_{epoch}.pth')
-        
+        checkpoint_path = f'weights/version2/checkpoint_epoch_{epoch}.pt'
+        save_checkpoint(model, optimizer, scheduler, alpha_scaler, epoch, checkpoint_path)        

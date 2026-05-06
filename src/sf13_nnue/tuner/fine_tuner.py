@@ -1,9 +1,9 @@
 import torch
 from torch import nn
-from pytorch_nnue.model import NNUE
-from pytorch_nnue.tuner.tuner_data_loader import HalfKPDatasetTuning
-from pytorch_nnue.data_loader import HalfKPDataset
-from pytorch_nnue.utils import weight_init, hybrid_loss, AlphaScaler, mse_loss
+from sf13_nnue.model import NNUE
+from sf13_nnue.tuner.tuner_data_loader import HalfKPDatasetTuning
+from sf13_nnue.data_loader import HalfKPDataset
+from sf13_nnue.utils import weight_init, hybrid_loss, AlphaScaler, mse_loss, save_checkpoint
 from torch.utils.data import DataLoader
 from torch.optim.lr_scheduler import CosineAnnealingLR, LinearLR, ChainedScheduler
 from torch.optim import AdamW
@@ -90,18 +90,17 @@ if __name__ == "__main__":
 
     scaler = GradScaler()
 
-    model = load_model("weights/weights4/model_weights_9.pth")
+    model = load_model("weights/version2/checkpoint_epoch_9_weights.pt")
     model.to(device)
     
     model = torch.compile(model) if is_cuda else model
 
     optimizer = AdamW(
         [
-        {"params": model.feature_transformer.parameters(), "lr": LR},
-        {"params": model.linear_stack[0].parameters(), "lr": LR},
-        {"params": model.linear_stack[2].parameters(), "lr": LR/10},
-        {"params": model.linear_stack[4].parameters(), "lr": LR/10},
-        {"params": model.linear_stack[6].parameters(), "lr": LR/10}
+        {"params": model.input.parameters(), "lr": LR},
+        {"params": model.layer_stacks[0].parameters(), "lr": LR},
+        {"params": model.layer_stacks[2].parameters(), "lr": LR/10},
+        {"params": model.layer_stacks[4].parameters(), "lr": LR/10}
     ], lr=LR/10)
     scheduler1 = CosineAnnealingLR(optimizer, T_max=EPOCHS * len(dataloader))
     scheduler = scheduler1
@@ -114,5 +113,7 @@ if __name__ == "__main__":
 
         print(f"Epoch {epoch+1}\n-------------------------------")
         training_loop(dataloader, model, hybrid_loss, optimizer, scheduler, device, scaler, alpha_scaler=alpha_scaler, mse_fn=mse_loss)
-        torch.save(model.state_dict(), f'weights/weights4_tuned5/model_weights_{epoch}.pth')
+        # torch.save(model.state_dict(), f'weights/version2_tuned/model_weights_{epoch}.pth')
+        checkpoint_path = f'weights/version2_tuned/checkpoint_epoch_{epoch}.pt'
+        save_checkpoint(model, optimizer, scheduler, alpha_scaler, epoch, checkpoint_path)
         

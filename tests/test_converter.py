@@ -5,7 +5,7 @@ import torch
 import chess
 import chess.pgn
 import pytest
-from data.converter import fast_halfkp_indices, HalfKPExporter
+from data.fishtest_converter import fast_halfkp_indices, HalfKPExporter
 
 def test_fast_halfkp_indices():
     # Test standard starting position

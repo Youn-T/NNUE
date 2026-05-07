@@ -194,3 +194,24 @@ def save_checkpoint(model, optimizer, scheduler, alpha_scaler, epoch, path):
     torch.save(clean_state_dict, weights_path)
     
     print(f"Checkpoint sauvé : {path}")
+    
+    
+def fix_indices_on_the_fly(indices, stm_is_black):
+    """
+    Si c'est aux noirs de jouer (stm_is_black), on corrige 
+    l'index pour passer du Flip Vertical à la Rotation 180.
+    """
+    if not stm_is_black:
+        return indices # Déjà correct pour les blancs
+    
+    # On décompose l'index (sur CPU ou GPU avec PyTorch)
+    ksq_vflip = indices // 640
+    remainder = indices % 640
+    p_idx = remainder // 64
+    psq_vflip = remainder % 64
+    
+    # On applique le miroir horizontal (^ 7) pour transformer le flip en rotation
+    ksq_rot = ksq_vflip ^ 7
+    psq_rot = psq_vflip ^ 7
+    
+    return (ksq_rot * 640) + (p_idx * 64) + psq_rot

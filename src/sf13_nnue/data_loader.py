@@ -3,7 +3,7 @@ import glob
 import os
 import random
 from torch.utils.data import IterableDataset, get_worker_info
-from sf13_nnue.utils import get_nstm_indices, centipawn_to_prob
+from sf13_nnue.utils import get_nstm_indices, centipawn_to_prob, fix_indices_on_the_fly
 
 class HalfKPDataset(IterableDataset):
     def __init__(self, data_dir='data/halfkp_data', batch_size=8192, shuffle=True):

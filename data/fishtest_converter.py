@@ -3,9 +3,12 @@ import numpy as np
 import re
 
 # --- CONFIGURATION ---
-INPUT_DIR = "data/raw_dataset"
-OUTPUT_DIR = "D:/Projects/HalfKP Dataset"#"data/halfkp_data"
+INPUT_DIR = "C:/Users/yount/Documents/projets/Pytorch NNUE/data/raw_dataset"
+OUTPUT_DIR = "D:/Projects/NNUE SF 13/FISHTEST DATASET"#"data/halfkp_data"
 CHUNK_SIZE = 1_000_000  # On augmente la taille des chunks pour moins de fichiers
+MIN_EVAL_DEPTH = 16
+MAX_EVAL = 1200
+SKIP_PLIES = 12
 
 PIECE_OFFSET = [0, 0, 1, 2, 3, 4] 
 
@@ -14,15 +17,15 @@ def fast_halfkp_indices(board):
     stm = board.turn
     king_sq = board.king(stm)
     if stm == chess.BLACK:
-        king_sq ^= 56 
+        king_sq ^= 63 #56 -> changed to 63 to flip vertical and horizontal in one step, since SF 13 uses 180 rotation for black pieces.
 
     indices = []
     for sq, piece in board.piece_map().items():
         if piece.piece_type == chess.KING: continue
         p_idx = PIECE_OFFSET[piece.piece_type]
         if piece.color != stm: p_idx += 5
-        p_sq = sq if stm == chess.WHITE else sq ^ 56
-        indices.append(king_sq * 640 + p_idx * 64 + p_sq)
+        p_sq = sq if stm == chess.WHITE else sq ^ 63
+        indices.append(king_sq * 641 + p_idx * 64 + p_sq)
     return indices
 
 class HalfKPExporter(chess.pgn.BaseVisitor):
@@ -36,6 +39,7 @@ class HalfKPExporter(chess.pgn.BaseVisitor):
         self.res_val = 0.5
         self.board = None # Référence vers le plateau interne
         self.eval_re = re.compile(r"\[%eval\s+([^\]]+)\]|^([+-]?(?:\d+\.\d+|M\d+|M-[0-9]+|\#[-+]?\d+|\d+))(?:/|\s|$)")
+        self.depth_re = re.compile(r"/(\d+)")
 
     def begin_game(self):
         self.res_val = 0.5
@@ -60,18 +64,34 @@ class HalfKPExporter(chess.pgn.BaseVisitor):
         Déclencheur principal : ici, le coup a déjà été joué sur self.board.
         On extrait l'éval et on enregistre l'état actuel du plateau.
         """
+
+        if self.board.fullmove_number < SKIP_PLIES // 2:
+            return
+        
+        if self.board.is_check():
+            return
+        
         match = self.eval_re.search(comment)
+        depth_match = self.depth_re.search(comment)
         if match:
             # 1. Extraction du score (toujours relatif aux blancs dans le PGN)
             val = match.group(1) or match.group(2)
             val = val.split(",", 1)[0].strip()
+            
+            depth = int(depth_match.group(1)) if depth_match else 0
+            if depth < MIN_EVAL_DEPTH:
+                # print(f"Skipped shallow eval (depth={depth}): {val}")
+                return # On ignore les évals peu profonds pour éviter le bruit
             
             if 'M' in val or '#' in val:
                 val_int = int(val.replace('M', '').replace('#', ''))
                 score_played = 10000 if val_int > 0 else -10000
             else:
                 score_played = int(float(val) * 100)
-            
+                
+            if abs(score_played) > MAX_EVAL:
+                # print(f"Skipped extreme eval: {score_played} centipawns")
+                return
             # Le score du PGN est relatif au joueur qui vient de jouer.
             # Cependant, self.board.turn pointe maintenant vers le prochain joueur (Side To Move).
             # Le score pour le STM est donc systématiquement l'inverse.
@@ -91,8 +111,8 @@ class HalfKPExporter(chess.pgn.BaseVisitor):
                 stm_k = self.board.king(chess.WHITE)
                 nstm_k = self.board.king(chess.BLACK)
             else:
-                stm_k = self.board.king(chess.BLACK) ^ 56
-                nstm_k = self.board.king(chess.WHITE) ^ 56
+                stm_k = self.board.king(chess.BLACK) ^ 63
+                nstm_k = self.board.king(chess.WHITE) ^ 63
             
             self.stm_kings.append(stm_k)
             self.nstm_kings.append(nstm_k)

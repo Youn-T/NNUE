@@ -8,10 +8,11 @@ from torch.optim.lr_scheduler import CosineAnnealingLR, LinearLR, ChainedSchedul
 from torch.optim import AdamW
 from torch.amp import autocast, GradScaler
 from torch.nn.utils import clip_grad_norm_
+import sf13_nnue.nnue_dataset as nnue_dataset 
 import time
 # HYPERPARAMETERS
 EPOCHS = 10
-BATCH_SIZE = 1024*32
+BATCH_SIZE = 1024*8
 LR = 0.0001
 
 def training_loop(dataloader, model, loss_fn, optimizer, scheduler, device, scaler, alpha_scaler: AlphaScaler, mse_fn):
@@ -19,18 +20,24 @@ def training_loop(dataloader, model, loss_fn, optimizer, scheduler, device, scal
     model.train()
     start = time.perf_counter()
     times = []
-    for batch, (X, y) in enumerate(dataloader):
-        X_us, X_them = X
-        score, WDL = y
-        
-        X_us = X_us.to(device, non_blocking=True)
-        X_them = X_them.to(device, non_blocking=True)
+    for batch, (us, them, X_w, X_b, WDL, score) in enumerate(dataloader):
+        # X_us, X_them = X
+        # score, WDL = y
+        w_idx, w_offsets = X_w
+        b_idx, b_offsets = X_b
+        w_idx = w_idx.to(device=device, non_blocking=True)
+        b_idx = b_idx.to(device=device, non_blocking=True)
+        w_offsets = w_offsets.to(device=device, non_blocking=True)
+        b_offsets = b_offsets.to(device=device, non_blocking=True)
+        us = us.to(device=device, non_blocking=True)
+        them = them.to(device=device, non_blocking=True)
+
 
         score = score.to(device, non_blocking=True)
         WDL = WDL.to(device, non_blocking=True)
         optimizer.zero_grad(set_to_none=True)
         with autocast(device_type=device):
-            pred = model(X_us, X_them).squeeze(1)
+            pred = model(us, them, w_idx, b_idx, w_offsets, b_offsets)
             loss = loss_fn(pred, score, WDL, alpha=1 - alpha_scaler.get_alpha())
             mse_loss = mse_fn(pred, score)
         
@@ -46,7 +53,7 @@ def training_loop(dataloader, model, loss_fn, optimizer, scheduler, device, scal
             times.append(time.perf_counter() - start)
         start = time.perf_counter()
         if batch % 100 == 0:
-            loss, current = loss.item(), batch * BATCH_SIZE + len(X)
+            loss = loss.item()
             print(f"loss: {loss:>7f} - mse_loss: {mse_loss.item():>7f} - alpha: {alpha_scaler.get_alpha():.4f}")
 
 
@@ -55,17 +62,20 @@ if __name__ == "__main__":
     print("Using {} device".format(device))
     is_cuda = device == "cuda"
 
-    dataset = HalfKPDataset(batch_size=BATCH_SIZE, shuffle=True, data_dir='D:/Projects/HalfKP Dataset Train')
+    # dataset = HalfKPDataset(batch_size=BATCH_SIZE, shuffle=True, data_dir='D:/Projects/HalfKP Dataset Train')
 
-    dataloader = DataLoader(
-            dataset,
-            batch_size=None,          
-            num_workers=6,
-            pin_memory=True,          
-            persistent_workers=True,
-            prefetch_factor=4,
-        )
-
+    # dataloader = DataLoader(
+    #         dataset,
+    #         batch_size=None,          
+    #         num_workers=6,
+    #         pin_memory=True,          
+    #         persistent_workers=True,
+    #         prefetch_factor=4,
+    #     )
+    train_infinite = nnue_dataset.SparseBatchDataset('HalfKP', "D:/Projects/NNUE SF 13/T60T70wIsRightFarseer.binpack", BATCH_SIZE, num_workers=4,
+                                                   filtered=False, random_fen_skipping=False, device='cpu')
+    dataloader = DataLoader(nnue_dataset.FixedNumBatchesDataset(train_infinite, (500_000_000 + BATCH_SIZE - 1) // BATCH_SIZE), batch_size=None, batch_sampler=None)
+    print(len(dataloader))
     scaler = GradScaler()
 
     model = NNUE().to(device)
@@ -79,7 +89,6 @@ if __name__ == "__main__":
     scheduler = ChainedScheduler([scheduler2, scheduler1])
 
     alpha_scaler = AlphaScaler()
-    print(alpha_scaler)
 
     for epoch in range(EPOCHS):
         # Warmup jusqu'à 3 epochs, puis maintien d'un alpha de 0.005 (pondération du BCE)
@@ -90,5 +99,5 @@ if __name__ == "__main__":
 
         print(f"Epoch {epoch+1}\n-------------------------------")
         training_loop(dataloader, model, hybrid_loss, optimizer, scheduler, device, scaler, alpha_scaler=alpha_scaler, mse_fn=mse_loss)
-        checkpoint_path = f'weights/version2/checkpoint_epoch_{epoch}.pt'
+        checkpoint_path = f'weights/version3/checkpoint_epoch_{epoch}.pt'
         save_checkpoint(model, optimizer, scheduler, alpha_scaler, epoch, checkpoint_path)        

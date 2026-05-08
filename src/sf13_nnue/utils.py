@@ -15,13 +15,36 @@ class CReLU(torch.nn.Module):
         return torch.clamp(x, min=0.0, max=self.clip_value)
 
     
+# def hybrid_loss(pred, score, WDL, alpha=0.005):
 def hybrid_loss(pred, score, WDL, alpha=0.005):
     mse_loss = F.mse_loss(centipawn_to_prob(pred, scale=400.0), centipawn_to_prob(score, scale=400.0))
     bce_loss = F.binary_cross_entropy_with_logits(pred / 400.0, WDL.float())
     return alpha * mse_loss + (1 - alpha) * bce_loss
+    # NNUE2SCORE = 600.0
+    # SCALING = 361.0
+    
+    # q = pred * NNUE2SCORE / SCALING          # mise à l'échelle STM → logit réaliste
+    # p = (score / SCALING).sigmoid()           # cible enseignant
 
-def mse_loss(pred, target):
-    return F.mse_loss(centipawn_to_prob(pred, scale=400.0), centipawn_to_prob(target, scale=400.0))  
+    # teacher_loss = -(p * F.logsigmoid(q) + (1 - p) * F.logsigmoid(-q))
+    # outcome_loss = -(WDL * F.logsigmoid(q) + (1 - WDL) * F.logsigmoid(-q))
+    
+    # return (alpha * teacher_loss + (1 - alpha) * outcome_loss).mean()
+
+def mse_loss(pred, score):
+    
+    # NNUE2SCORE = 600.0
+    # SCALING = 361.0
+    
+    # q = pred * NNUE2SCORE / SCALING          # mise à l'échelle STM → logit réaliste
+    # p = (score / SCALING).sigmoid()           # cible enseignant
+
+    # teacher_loss = -(p * F.logsigmoid(q) + (1 - p) * F.logsigmoid(-q))
+    
+    # return teacher_loss.mean()
+    
+    # return F.mse_loss(centipawn_to_prob(pred, scale=400.0), centipawn_to_prob(target, scale=400.0))  
+    return F.mse_loss(centipawn_to_prob(pred, scale=400.0), centipawn_to_prob(score, scale=400.0))  
     
 def weight_init(m):
     if isinstance(m, torch.nn.Linear):
@@ -161,7 +184,7 @@ class AlphaScaler():
         
         
 
-def save_checkpoint(model, optimizer, scheduler, alpha_scaler, epoch, path):
+def save_checkpoint(model, optimizer, scheduler, alpha_scaler, epoch, path, scaler):
     """
     Sauvegarde le modèle en nettoyant les préfixes de torch.compile 
     et en incluant les états de l'entraînement.
@@ -180,6 +203,7 @@ def save_checkpoint(model, optimizer, scheduler, alpha_scaler, epoch, path):
         'optimizer_state_dict': optimizer.state_dict(),
         'scheduler_state_dict': scheduler.state_dict(),
         'alpha_scaler_state': alpha_scaler.state_dict() if hasattr(alpha_scaler, 'state_dict') else alpha_scaler,
+        'scaler_state_dict': scaler.state_dict() if hasattr(scaler, 'state_dict') else scaler,
     }
     
     # Créer le dossier si nécessaire
@@ -194,6 +218,38 @@ def save_checkpoint(model, optimizer, scheduler, alpha_scaler, epoch, path):
     torch.save(clean_state_dict, weights_path)
     
     print(f"Checkpoint sauvé : {path}")
+    
+
+def load_checkpoint(path, model, optimizer, scheduler, alpha_scaler, scaler):
+    if not os.path.exists(path):
+        return 0, alpha_scaler # On rend le scaler intact
+
+    checkpoint = torch.load(path, map_location='cpu', weights_only=False) # weights_only=False nécessaire pour AlphaScaler
+    
+    model.load_state_dict(checkpoint['state_dict'])
+
+    if scaler is not None and 'scaler_state' in checkpoint:
+        scaler.load_state_dict(checkpoint['scaler_state'])
+
+    if optimizer is not None:
+        optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
+        # CRUCIAL : Déplacer manuellement les états de l'optimiseur sur le device
+        for state in optimizer.state.values():
+            for k, v in state.items():
+                if isinstance(v, torch.Tensor):
+                    state[k] = v.to(next(model.parameters()).device)
+    
+    scheduler.load_state_dict(checkpoint['scheduler_state_dict'])
+
+    saved_scaler = checkpoint['alpha_scaler_state']
+    # Si c'est un dict, on charge, sinon on remplace l'instance
+    if isinstance(saved_scaler, dict) and hasattr(alpha_scaler, 'load_state_dict'):
+        alpha_scaler.load_state_dict(saved_scaler)
+    else:
+        alpha_scaler = saved_scaler
+
+    epoch = checkpoint.get('epoch', 0) + 1 # On reprend à l'époque suivante
+    return epoch, alpha_scaler
     
     
 def fix_indices_on_the_fly(indices, stm_is_black):

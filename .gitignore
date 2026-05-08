@@ -25,3 +25,4 @@ full_code.py
 /src/sf13_nnue.egg-info/
 *.pt
 /src/sf13_nnue/__pycache__
+/src/sf13_nnue/test.py

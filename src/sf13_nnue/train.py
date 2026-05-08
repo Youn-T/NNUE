@@ -99,9 +99,9 @@ if __name__ == "__main__":
     for epoch in range(start_epoch, EPOCHS):
         # Warmup jusqu'à 3 epochs, puis maintien d'un alpha de 0.005 (pondération du BCE)
         if epoch == 0:
-            alpha_scaler.set_linear_schedule(initial_alpha=0.0, final_alpha=0.005, total_steps=3 * len(dataloader))
+            alpha_scaler.set_linear_schedule(initial_alpha=0.0, final_alpha=0.05, total_steps=3 * len(dataloader))
         if epoch == 3:
-            alpha_scaler.set_constant_alpha(0.005)
+            alpha_scaler.set_constant_alpha(0.05)
 
         print(f"Epoch {epoch+1}\n-------------------------------")
         training_loop(dataloader, model, hybrid_loss, optimizer, scheduler, device, scaler, alpha_scaler=alpha_scaler, mse_fn=mse_loss)

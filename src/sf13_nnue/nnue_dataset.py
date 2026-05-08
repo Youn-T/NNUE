@@ -106,14 +106,21 @@ class TrainingDataProvider:
         return self
 
     def __next__(self):
-        v = self.fetch_next(self.stream)
+        while True:
+            try:
+                v = self.fetch_next(self.stream)
 
-        if v:
-            tensors = v.contents.get_tensors(self.device)
-            self.destroy_part(v)
-            return tensors
-        else:
-            raise StopIteration
+                if v:
+                    tensors = v.contents.get_tensors(self.device)
+                    self.destroy_part(v)
+                    return tensors
+                else:
+                    raise StopIteration
+            except StopIteration:
+                # On remonte l'exception de fin d'itération normalement
+                raise
+            except Exception as e:
+                continue
 
     def __del__(self):
         self.destroy_stream(self.stream)

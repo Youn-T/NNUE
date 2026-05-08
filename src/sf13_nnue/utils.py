@@ -3,7 +3,7 @@ import math
 import torch.nn.functional as F
 import os
 
-HALFKP_NUM_EMBEDDINGS = 40960
+HALFKP_NUM_EMBEDDINGS = 41024
 
 class CReLU(torch.nn.Module):
     def __init__(self, clip_value=255.0):

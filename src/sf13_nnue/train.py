@@ -21,8 +21,6 @@ def training_loop(dataloader, model, loss_fn, optimizer, scheduler, device, scal
     start = time.perf_counter()
     times = []
     for batch, (us, them, X_w, X_b, WDL, score) in enumerate(dataloader):
-        # X_us, X_them = X
-        # score, WDL = y
         w_idx, w_offsets = X_w
         b_idx, b_offsets = X_b
         w_idx = w_idx.to(device=device, non_blocking=True)
@@ -66,20 +64,17 @@ if __name__ == "__main__":
     print("Using {} device".format(device))
     is_cuda = device == "cuda"
 
-    # dataset = HalfKPDataset(batch_size=BATCH_SIZE, shuffle=True, data_dir='D:/Projects/HalfKP Dataset Train')
 
-    # dataloader = DataLoader(
-    #         dataset,
-    #         batch_size=None,          
-    #         num_workers=6,
-    #         pin_memory=True,          
-    #         persistent_workers=True,
-    #         prefetch_factor=4,
-    #     )
-    train_infinite = nnue_dataset.SparseBatchDataset('HalfKP', "D:/Projects/NNUE SF 13/T60T70wIsRightFarseer.binpack", BATCH_SIZE, num_workers=4,
-                                                   filtered=False, random_fen_skipping=False, device='cpu')
-    dataloader = DataLoader(nnue_dataset.FixedNumBatchesDataset(train_infinite, (300_000_000 + BATCH_SIZE - 1) // BATCH_SIZE), batch_size=None, batch_sampler=None)
-    print(len(dataloader))
+    train_infinite = nnue_dataset.SparseBatchDataset('HalfKP', 
+                                                     "D:/Projects/NNUE SF 13/T60T70wIsRightFarseer.binpack",
+                                                     BATCH_SIZE,
+                                                     num_workers=4,
+                                                     filtered=True,
+                                                     random_fen_skipping=True,
+                                                     cyclic=True,
+                                                     device='cpu')
+    dataloader = DataLoader(nnue_dataset.FixedNumBatchesDataset(train_infinite, (500_000_000 + BATCH_SIZE - 1) // BATCH_SIZE), batch_size=None, batch_sampler=None)
+
     scaler = GradScaler()
 
     model = NNUE().to(device)
@@ -93,9 +88,10 @@ if __name__ == "__main__":
 
     alpha_scaler = AlphaScaler()
     start_epoch = 0
+    
     # Comment this to fully restart training, or set to a checkpoint path to resume from a specific epoch
-    checkpoint_path = "weights/version3/checkpoint_epoch_2.pt"
-    start_epoch, alpha_scaler = load_checkpoint(checkpoint_path, model, optimizer, scheduler, alpha_scaler, scaler)
+    # checkpoint_path = "weights/version3/checkpoint_epoch_2.pt"
+    # start_epoch, alpha_scaler = load_checkpoint(checkpoint_path, model, optimizer, scheduler, alpha_scaler, scaler)
 
     model = torch.compile(model) if is_cuda else model
 
@@ -104,14 +100,10 @@ if __name__ == "__main__":
         # Warmup jusqu'à 3 epochs, puis maintien d'un alpha de 0.005 (pondération du BCE)
         if epoch == 0:
             alpha_scaler.set_linear_schedule(initial_alpha=0.0, final_alpha=0.005, total_steps=3 * len(dataloader))
-        if epoch == 1:
+        if epoch == 3:
             alpha_scaler.set_constant_alpha(0.005)
 
         print(f"Epoch {epoch+1}\n-------------------------------")
         training_loop(dataloader, model, hybrid_loss, optimizer, scheduler, device, scaler, alpha_scaler=alpha_scaler, mse_fn=mse_loss)
-        checkpoint_path = f'weights/version3/checkpoint_epoch_{epoch}.pt'
-        save_checkpoint(model, optimizer, scheduler, alpha_scaler, epoch, checkpoint_path, scaler)   
-        
-        train_infinite = nnue_dataset.SparseBatchDataset('HalfKP', "D:/Projects/NNUE SF 13/T60T70wIsRightFarseer.binpack", BATCH_SIZE, num_workers=4,
-                                                   filtered=False, random_fen_skipping=False, device='cpu')
-        dataloader = DataLoader(nnue_dataset.FixedNumBatchesDataset(train_infinite, (250_000_000 + BATCH_SIZE - 1) // BATCH_SIZE), batch_size=None, batch_sampler=None)     
+        checkpoint_path = f'weights/version4/checkpoint_epoch_{epoch}.pt'
+        save_checkpoint(model, optimizer, scheduler, alpha_scaler, epoch, checkpoint_path, scaler)     

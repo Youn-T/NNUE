@@ -3,7 +3,7 @@ from torch import nn
 from sf13_nnue.model import NNUE
 from sf13_nnue.utils import weight_init, hybrid_loss, AlphaScaler, mse_loss, save_checkpoint, load_checkpoint, make_data_loaders
 from torch.utils.data import DataLoader
-from torch.optim.lr_scheduler import CosineAnnealingLR, LinearLR, ChainedScheduler
+from torch.optim.lr_scheduler import CosineAnnealingLR, LinearLR, SequentialLR
 from torch.optim import AdamW
 from torch.amp import autocast, GradScaler
 from torch.nn.utils import clip_grad_norm_
@@ -37,7 +37,7 @@ def training_loop(dataloader, model, loss_fn, optimizer, scheduler, device, scal
         
         scaler.scale(loss).backward()
         scaler.unscale_(optimizer)
-        clip_grad_norm_(model.parameters(), 2.0)
+        clip_grad_norm_(model.parameters(), 1.0)
         scaler.step(optimizer)
         scaler.update()
         scheduler.step() 
@@ -75,16 +75,19 @@ if __name__ == "__main__":
     dataloader = make_data_loaders(
         ["D:/Projects/NNUE_SF_13/T60T70wIsRightFarseer.binpack"],
         feature_set=halfkp,
-        num_workers=6,
+        num_workers=8,
         batch_size=1024 * 8,
         config= data_loader.DataloaderSkipConfig(
-            filtered=False,
+            filtered=True,
             random_fen_skipping=0,
             wld_filtered=False,
             early_fen_skipping=False
         ),
         epoch_size=500_000_000,
     )
+    
+    print(len(dataloader))
+    
     scaler = GradScaler()
 
     model = NNUE().to(device)
@@ -94,7 +97,7 @@ if __name__ == "__main__":
     optimizer = AdamW(model.parameters(), lr=LR)
     scheduler1 = CosineAnnealingLR(optimizer, T_max=EPOCHS * len(dataloader))
     scheduler2 = LinearLR(optimizer, start_factor=0.1, total_iters=5000) 
-    scheduler = ChainedScheduler([scheduler2, scheduler1])
+    scheduler = SequentialLR(optimizer, schedulers=[scheduler2, scheduler1], milestones=[5000])
 
     alpha_scaler = AlphaScaler()
     start_epoch = 0
@@ -115,5 +118,5 @@ if __name__ == "__main__":
 
         print(f"Epoch {epoch+1}\n-------------------------------")
         training_loop(dataloader, model, hybrid_loss, optimizer, scheduler, device, scaler, alpha_scaler=alpha_scaler, mse_fn=mse_loss)
-        checkpoint_path = f'weights/version4/checkpoint_epoch_{epoch}.pt'
+        checkpoint_path = f'weights/version5/checkpoint_epoch_{epoch}.pt'
         save_checkpoint(model, optimizer, scheduler, alpha_scaler, epoch, checkpoint_path, scaler)     

@@ -26,3 +26,5 @@ full_code.py
 *.pt
 /src/sf13_nnue/__pycache__
 /src/sf13_nnue/test.py
+log.txt
+kg.txt

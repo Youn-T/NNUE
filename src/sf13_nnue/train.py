@@ -66,9 +66,9 @@ if __name__ == "__main__":
 
 
     train_infinite = nnue_dataset.SparseBatchDataset('HalfKP', 
-                                                     "D:/Projects/NNUE SF 13/T60T70wIsRightFarseer.binpack",
+                                                     "D:/Projects/NNUE_SF_13/T60T70wIsRightFarseer.binpack",
                                                      BATCH_SIZE,
-                                                     num_workers=4,
+                                                     num_workers=6,
                                                      filtered=True,
                                                      random_fen_skipping=True,
                                                      cyclic=True,

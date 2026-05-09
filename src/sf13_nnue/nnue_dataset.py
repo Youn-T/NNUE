@@ -120,6 +120,7 @@ class TrainingDataProvider:
                 # On remonte l'exception de fin d'itération normalement
                 raise
             except Exception as e:
+                print(f"Error fetching batch: {e}. Retrying...")
                 continue
 
     def __del__(self):

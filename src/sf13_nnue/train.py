@@ -1,14 +1,12 @@
 import torch
 from torch import nn
 from sf13_nnue.model import NNUE
-# from sf13_nnue.data_loader import HalfKPDataset
 from sf13_nnue.utils import weight_init, hybrid_loss, AlphaScaler, mse_loss, save_checkpoint, load_checkpoint, make_data_loaders
 from torch.utils.data import DataLoader
 from torch.optim.lr_scheduler import CosineAnnealingLR, LinearLR, ChainedScheduler
 from torch.optim import AdamW
 from torch.amp import autocast, GradScaler
 from torch.nn.utils import clip_grad_norm_
-import sf13_nnue.nnue_dataset as nnue_dataset 
 import time
 import data_loader
 import features as M

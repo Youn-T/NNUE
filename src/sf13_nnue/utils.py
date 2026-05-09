@@ -2,6 +2,9 @@ import torch
 import math
 import torch.nn.functional as F
 import os
+from torch.utils.data import DataLoader
+import features as M
+import data_loader
 
 HALFKP_NUM_EMBEDDINGS = 41024
 
@@ -196,10 +199,33 @@ def save_checkpoint(model, optimizer, scheduler, alpha_scaler, epoch, path, scal
     # C'est CRUCIAL pour que serialize.py reconnaisse 'input.weight', etc.
     clean_state_dict = {k.replace('_orig_mod.', ''): v for k, v in raw_state_dict.items()}
     
+    new_sd = {}
+
+    # 1. Mapping des noms de couches (comme précédemment)
+    key_mapping = {
+        "input_bias": "input.bias",
+        "layer_stacks.0.weight": "l1.weight",
+        "layer_stacks.0.bias": "l1.bias",
+        "layer_stacks.2.weight": "l2.weight",
+        "layer_stacks.2.bias": "l2.bias",
+        "layer_stacks.4.weight": "output.weight",
+        "layer_stacks.4.bias": "output.bias"
+    }
+
+    for old_key, new_key in key_mapping.items():
+        if old_key in clean_state_dict:
+            new_sd[new_key] = clean_state_dict[old_key]
+
+    input_w = clean_state_dict["input.weight"]
+    input_w = input_w[1:]
+    input_w = input_w.t()  # Transpose pour correspondre à l'attendu de SF13
+    new_sd["input.weight"] = input_w
+    
+    
     # 3. Préparer l'objet complet (pour le resume)
     checkpoint = {
         'epoch': epoch,
-        'state_dict': clean_state_dict,
+        'state_dict': new_sd,
         'optimizer_state_dict': optimizer.state_dict(),
         'scheduler_state_dict': scheduler.state_dict(),
         'alpha_scaler_state': alpha_scaler.state_dict() if hasattr(alpha_scaler, 'state_dict') else alpha_scaler,
@@ -215,7 +241,7 @@ def save_checkpoint(model, optimizer, scheduler, alpha_scaler, epoch, path, scal
     # Optionnel : Sauvegarder un fichier "weights only" 
     # Plus facile à pointer pour le script serialize.py
     weights_path = path.replace('.pt', '_weights.pt')
-    torch.save(clean_state_dict, weights_path)
+    torch.save(new_sd, weights_path)
     
     print(f"Checkpoint sauvé : {path}")
     
@@ -271,3 +297,33 @@ def fix_indices_on_the_fly(indices, stm_is_black):
     psq_rot = psq_vflip ^ 7
     
     return (ksq_rot * 640) + (p_idx * 64) + psq_rot
+
+
+
+def make_data_loaders(
+    train_filenames,
+    feature_set: M.FeatureSet,
+    num_workers,
+    batch_size,
+    config: data_loader.DataloaderSkipConfig,
+    epoch_size,
+):
+    # Epoch and validation sizes are arbitrary
+    features_name = feature_set.name
+    train_infinite = data_loader.SparseBatchDataset(
+        features_name,
+        train_filenames,
+        batch_size,
+        num_workers=num_workers,
+        config=config,
+    )
+    # num_workers has to be 0 for sparse, and 1 for dense
+    # it currently cannot work in parallel mode but it shouldn't need to
+    train = DataLoader(
+        data_loader.FixedNumBatchesDataset(
+            train_infinite, (epoch_size + batch_size - 1) // batch_size
+        ),
+        batch_size=None,
+        batch_sampler=None,
+    )
+    return train

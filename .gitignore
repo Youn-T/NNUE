@@ -28,3 +28,4 @@ full_code.py
 /src/sf13_nnue/test.py
 log.txt
 kg.txt
+*.pyc

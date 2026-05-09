@@ -19,15 +19,15 @@ class NNUE(nn.Module):
             nn.Linear(L2_SIZE, 1)
         )
         
-        self.input = nn.EmbeddingBag(41024, ACCUMULATOR_SIZE, mode='sum')
+        self.input = nn.EmbeddingBag(41025, ACCUMULATOR_SIZE, mode='sum', padding_idx=0)
         
         self.input_bias = nn.Parameter(torch.zeros(ACCUMULATOR_SIZE))
         
-    def forward(self,us, them, w_idx, b_idx, w_offsets, b_offsets):
+    def forward(self,us, them, w_idx, b_idx):
 
         
-        x_w = self.input(w_idx, w_offsets) + self.input_bias
-        x_b = self.input(b_idx, b_offsets) + self.input_bias
+        x_w = self.input(w_idx) + self.input_bias
+        x_b = self.input(b_idx) + self.input_bias
 
         x = (us * torch.cat([x_w, x_b], dim=1)) + (them * torch.cat([x_b, x_w], dim=1))
         x = x.clamp(0.0, CLIP_VALUE)

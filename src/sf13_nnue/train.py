@@ -1,8 +1,8 @@
 import torch
 from torch import nn
 from sf13_nnue.model import NNUE
-from sf13_nnue.data_loader import HalfKPDataset
-from sf13_nnue.utils import weight_init, hybrid_loss, AlphaScaler, mse_loss, save_checkpoint, load_checkpoint
+# from sf13_nnue.data_loader import HalfKPDataset
+from sf13_nnue.utils import weight_init, hybrid_loss, AlphaScaler, mse_loss, save_checkpoint, load_checkpoint, make_data_loaders
 from torch.utils.data import DataLoader
 from torch.optim.lr_scheduler import CosineAnnealingLR, LinearLR, ChainedScheduler
 from torch.optim import AdamW
@@ -10,6 +10,8 @@ from torch.amp import autocast, GradScaler
 from torch.nn.utils import clip_grad_norm_
 import sf13_nnue.nnue_dataset as nnue_dataset 
 import time
+import data_loader
+import features as M
 # HYPERPARAMETERS
 EPOCHS = 10
 BATCH_SIZE = 1024*8
@@ -21,12 +23,8 @@ def training_loop(dataloader, model, loss_fn, optimizer, scheduler, device, scal
     start = time.perf_counter()
     times = []
     for batch, (us, them, X_w, X_b, WDL, score) in enumerate(dataloader):
-        w_idx, w_offsets = X_w
-        b_idx, b_offsets = X_b
-        w_idx = w_idx.to(device=device, non_blocking=True)
-        b_idx = b_idx.to(device=device, non_blocking=True)
-        w_offsets = w_offsets.to(device=device, non_blocking=True)
-        b_offsets = b_offsets.to(device=device, non_blocking=True)
+        X_w = X_w.to(device=device, non_blocking=True)
+        X_b = X_b.to(device=device, non_blocking=True)
         us = us.to(device=device, non_blocking=True)
         them = them.to(device=device, non_blocking=True)
 
@@ -35,7 +33,7 @@ def training_loop(dataloader, model, loss_fn, optimizer, scheduler, device, scal
         WDL = WDL.to(device, non_blocking=True)
         optimizer.zero_grad(set_to_none=True)
         with autocast(device_type=device):
-            pred = model(us, them, w_idx, b_idx, w_offsets, b_offsets)
+            pred = model(us, them, X_w, X_b)
             loss = loss_fn(pred, score, WDL, alpha=1 - alpha_scaler.get_alpha())
             mse_loss = mse_fn(pred, score)
         
@@ -65,16 +63,30 @@ if __name__ == "__main__":
     is_cuda = device == "cuda"
 
 
-    train_infinite = nnue_dataset.SparseBatchDataset('HalfKP', 
-                                                     "D:/Projects/NNUE_SF_13/T60T70wIsRightFarseer.binpack",
-                                                     BATCH_SIZE,
-                                                     num_workers=6,
-                                                     filtered=True,
-                                                     random_fen_skipping=True,
-                                                     cyclic=True,
-                                                     device='cpu')
-    dataloader = DataLoader(nnue_dataset.FixedNumBatchesDataset(train_infinite, (500_000_000 + BATCH_SIZE - 1) // BATCH_SIZE), batch_size=None, batch_sampler=None)
-
+    # train_infinite = nnue_dataset.SparseBatchDataset('HalfKP', 
+    #                                                  "D:/Projects/NNUE_SF_13/T60T70wIsRightFarseer.binpack",
+    #                                                  BATCH_SIZE,
+    #                                                  num_workers=6,
+    #                                                  filtered=True,
+    #                                                  random_fen_skipping=True,
+    #                                                  cyclic=True,
+    #                                                  device='cpu')
+    # dataloader = DataLoader(nnue_dataset.FixedNumBatchesDataset(train_infinite, (500_000_000 + BATCH_SIZE - 1) // BATCH_SIZE), batch_size=None, batch_sampler=None)
+    halfkp = M.get_feature_set_from_name("HalfKP")
+    
+    dataloader = make_data_loaders(
+        ["D:/Projects/NNUE_SF_13/T60T70wIsRightFarseer.binpack"],
+        feature_set=halfkp,
+        num_workers=6,
+        batch_size=1024 * 8,
+        config= data_loader.DataloaderSkipConfig(
+            filtered=False,
+            random_fen_skipping=0,
+            wld_filtered=False,
+            early_fen_skipping=False
+        ),
+        epoch_size=500_000_000,
+    )
     scaler = GradScaler()
 
     model = NNUE().to(device)

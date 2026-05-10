@@ -78,7 +78,7 @@ if __name__ == "__main__":
         num_workers=8,
         batch_size=1024 * 8,
         config= data_loader.DataloaderSkipConfig(
-            filtered=True,
+            filtered=False,
             random_fen_skipping=0,
             wld_filtered=False,
             early_fen_skipping=False
